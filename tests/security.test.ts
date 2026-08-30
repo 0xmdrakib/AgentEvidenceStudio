@@ -5,6 +5,7 @@ import {
   getGoogleSignInHref,
   isNeonSignInRequiredError,
   NeonSignInRequiredError,
+  normalizeNeonUser,
 } from '../lib/neon.ts';
 
 const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -91,5 +92,23 @@ describe('hosted request boundary', () => {
     expect(isNeonSignInRequiredError(new NeonSignInRequiredError())).toBe(
       true,
     );
+  });
+
+  it('maps the Better Auth Google name and profile image fields', () => {
+    expect(
+      normalizeNeonUser({
+        id: 'user_1',
+        email: 'member@example.com',
+        user_metadata: {
+          displayName: 'Member Name',
+          profileImageUrl: 'https://images.example/avatar.png',
+        },
+      }),
+    ).toEqual({
+      id: 'user_1',
+      email: 'member@example.com',
+      name: 'Member Name',
+      avatarUrl: 'https://images.example/avatar.png',
+    });
   });
 });

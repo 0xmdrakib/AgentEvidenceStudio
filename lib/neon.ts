@@ -171,22 +171,25 @@ function sessionFrom(result: any): any {
   return result?.data?.session ?? result?.data ?? result?.session ?? null;
 }
 
-export async function getCurrentNeonUser(): Promise<{
+export type CurrentNeonUser = {
   id: string;
   email: string | null;
   name: string | null;
   avatarUrl: string | null;
-} | null> {
-  const neon = getNeon();
-  if (!neon) return null;
-  const result = (await neon.auth.getUser()) as any;
-  const user = result?.data?.user ?? result?.data ?? result?.user ?? null;
+};
+
+export function normalizeNeonUser(user: any): CurrentNeonUser | null {
   if (!user?.id) return null;
   return {
     id: user.id,
     email: user.email ?? null,
-    name: user.name ?? user.user_metadata?.name ?? null,
+    name:
+      user.name ??
+      user.user_metadata?.displayName ??
+      user.user_metadata?.name ??
+      null,
     avatarUrl:
+      user.user_metadata?.profileImageUrl ??
       user.image ??
       user.avatar_url ??
       user.picture ??
@@ -194,6 +197,14 @@ export async function getCurrentNeonUser(): Promise<{
       user.user_metadata?.picture ??
       null,
   };
+}
+
+export async function getCurrentNeonUser(): Promise<CurrentNeonUser | null> {
+  const neon = getNeon();
+  if (!neon) return null;
+  const result = (await neon.auth.getUser()) as any;
+  const user = result?.data?.user ?? result?.data ?? result?.user ?? null;
+  return normalizeNeonUser(user);
 }
 
 export async function signInWithGoogle(returnTo = '/'): Promise<void> {
