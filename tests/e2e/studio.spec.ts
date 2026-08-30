@@ -14,6 +14,7 @@ test('workspace is English-only and exposes the hosted primary flow', async ({ p
   await expect(page.getByText(/Secure hosted execution works from any browser/)).toBeVisible();
   await expect(page.getByText('বাংলা')).toHaveCount(0);
   await expect(page.getByText(/Local runner required/i)).toHaveCount(0);
+  await expect(page.locator('img[src="/brand/agent-evidence-logo.svg"]').filter({ visible: true }).first()).toBeVisible();
   await expect(page.getByRole('img', { name: /flight recorder/i })).toBeVisible();
 });
 

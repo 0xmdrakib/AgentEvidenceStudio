@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <style>.bracket{fill:#10231E}@media(prefers-color-scheme:dark){.bracket{fill:#FFF8ED}}</style>
+  <path class="bracket" d="M6 6h22v8H16v36h12v8H6Z"/>
+  <path class="bracket" d="M58 6H36v8h12v36H36v8h22Z"/>
+  <rect x="27" y="26" width="10" height="12" rx="1.5" fill="#FF675B"/>
+</svg>

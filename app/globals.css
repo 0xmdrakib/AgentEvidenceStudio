@@ -5,8 +5,8 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --cream: #fffaf0; --ink: #17201d; --muted-ink: #65706b; --line: #ded8cd; --paper: #fffdf8;
-  --coral: #ff6b5a; --pink: #ff4d8b; --lavender: #b8a4ed; --mint: #a4d4c5; --teal: #1a3a3a; --ochre: #e8b94a; --peach: #ffb084;
+  --cream: #fff8ed; --ink: #10231e; --muted-ink: #65706b; --line: #ded8cd; --paper: #fffdf8;
+  --coral: #ff675b; --pink: #ff4d8b; --lavender: #b8a4ed; --mint: #a4d4c5; --teal: #1a3a3a; --ochre: #e8b94a; --peach: #ffb084;
   --background: var(--cream); --foreground: var(--ink); --card: var(--paper); --card-foreground: var(--ink);
   --popover: #fff; --popover-foreground: var(--ink); --primary: var(--ink); --primary-foreground: var(--cream);
   --secondary: #eee8dd; --secondary-foreground: var(--ink); --muted: #f2ede4; --muted-foreground: var(--muted-ink);

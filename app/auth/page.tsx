@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
@@ -60,6 +61,9 @@ export default function AuthPage() {
   return (
     <main className="grid min-h-screen place-items-center p-4">
       <section className="paper w-full max-w-md rounded-[28px] p-6 sm:p-8">
+        <Link href="/" className="mb-5 inline-flex" aria-label="Agent Evidence Studio home">
+          <Image src="/brand/agent-evidence-logo.svg" alt="" aria-hidden="true" width={220} height={43} unoptimized className="h-10 w-auto max-w-[220px]" />
+        </Link>
         <Link
           href="/settings"
           className="inline-flex min-h-11 items-center gap-2 text-sm font-bold"

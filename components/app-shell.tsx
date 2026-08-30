@@ -1,8 +1,9 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Activity, FileCheck2, FlaskConical, GitCompareArrows, Menu, Plus, ScanSearch, Settings, ShieldCheck, X } from 'lucide-react';
+import { Activity, FileCheck2, FlaskConical, GitCompareArrows, Menu, Plus, Settings, ShieldCheck, X } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStudio } from './studio-provider';
@@ -24,4 +25,4 @@ export function AppShell({ children }: { children: ReactNode }) {
     <main className="min-w-0 px-4 py-6 sm:px-7 lg:px-10 lg:py-9 xl:px-14">{error && <div role="alert" className="mb-5 flex items-start justify-between gap-4 rounded-2xl border border-[#d89287] bg-[#fff0ed] p-4 text-sm"><span>{error}</span><button className="font-bold" onClick={clearError}>Dismiss</button></div>}{children}</main>
   </div>;
 }
-function Brand() { return <Link href="/" className="flex items-center gap-3" aria-label="Agent Evidence Studio home"><span className="relative grid h-11 w-11 place-items-center rounded-[15px] bg-[var(--ink)] text-[var(--cream)] shadow-[3px_3px_0_var(--coral)]"><ScanSearch size={23} strokeWidth={2.2} /><span className="absolute right-[7px] top-[7px] h-2 w-2 rounded-full bg-[#c8ff65] ring-2 ring-[var(--ink)]" /></span><span><span className="block text-sm font-extrabold tracking-[-0.02em]">Agent Evidence</span><span className="block text-xs font-semibold text-[var(--muted-ink)]">Studio</span></span></Link>; }
+function Brand() { return <Link href="/" className="inline-flex min-h-11 items-center" aria-label="Agent Evidence Studio home"><Image src="/brand/agent-evidence-logo.svg" alt="" aria-hidden="true" width={202} height={40} unoptimized className="h-10 w-auto max-w-[202px]" /></Link>; }

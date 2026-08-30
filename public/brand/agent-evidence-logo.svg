@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="920" height="180" viewBox="0 0 920 180" role="img" aria-labelledby="title">
+  <title id="title">Agent Evidence Studio</title>
+  <g transform="scale(.84)">
+    <path d="M0 0H82V28H34V152H82V180H0Z" fill="#10231E"/>
+    <path d="M224 0H142V28H190V152H142V180H224Z" fill="#10231E"/>
+    <rect x="91" y="69" width="42" height="42" rx="3" fill="#FF675B"/>
+  </g>
+  <text x="222" y="88" fill="#10231E" font-family="Inter, Arial, sans-serif" font-size="76" font-weight="700" letter-spacing="-3">Agent Evidence</text>
+  <text x="226" y="140" fill="#10231E" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="12">STUDIO</text>
+</svg>
