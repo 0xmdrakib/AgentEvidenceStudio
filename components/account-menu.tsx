@@ -25,6 +25,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const [user, setUser] = useState<AccountUser>(null);
   const [checking, setChecking] = useState(true);
   const [open, setOpen] = useState(false);
+  const [avatarFailed, setAvatarFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -50,6 +51,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
       listener?.unsubscribe?.();
     };
   }, []);
+
+  useEffect(() => setAvatarFailed(false), [user?.avatarUrl]);
 
   useEffect(() => {
     const close = (event: PointerEvent) => {
@@ -106,7 +109,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        {user.avatarUrl ? (
+        {user.avatarUrl && !avatarFailed ? (
           <Image
             src={user.avatarUrl}
             alt=""
@@ -115,6 +118,7 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
             width={32}
             height={32}
             unoptimized
+            onError={() => setAvatarFailed(true)}
             className="h-8 w-8 rounded-full object-cover ring-1 ring-black/10"
           />
         ) : (

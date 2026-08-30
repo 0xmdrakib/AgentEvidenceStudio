@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { assertJsonRequest, assertTrustedOrigin } from '../lib/server-auth.ts';
 import {
@@ -9,6 +10,13 @@ import {
 } from '../lib/neon.ts';
 
 const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+const vercelConfig = JSON.parse(
+  readFileSync(new URL('../vercel.json', import.meta.url), 'utf8'),
+) as {
+  headers: Array<{
+    headers: Array<{ key: string; value: string }>;
+  }>;
+};
 
 afterEach(() => {
   process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
@@ -110,5 +118,15 @@ describe('hosted request boundary', () => {
       name: 'Member Name',
       avatarUrl: 'https://images.example/avatar.png',
     });
+  });
+
+  it('allows the exact Google profile-image host in the CSP', () => {
+    const csp = vercelConfig.headers
+      .flatMap((entry) => entry.headers)
+      .find((header) => header.key === 'Content-Security-Policy')?.value;
+    expect(csp).toContain(
+      "img-src 'self' data: blob: https://lh3.googleusercontent.com",
+    );
+    expect(csp).not.toContain('https://*.googleusercontent.com');
   });
 });
