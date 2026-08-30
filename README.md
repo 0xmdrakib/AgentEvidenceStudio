@@ -45,7 +45,7 @@ npm run test:e2e
 
 `npm run test:technocore:live` targets a disposable, version-pinned local Technocore container and never writes to the public service.
 
-## Security and recovery
+## Privacy and recovery
 
 - No chain-of-thought is requested or stored.
 - Provider evidence contains role output, bounded source metadata, usage, status, and digests only.
@@ -53,8 +53,8 @@ npm run test:e2e
 - GitHub, X, room ownership transfer, public Technocore rooms, and notes are outside run approval.
 - Every encrypted export produces a recovery kit that must be stored offline.
 
-See [Architecture](docs/ARCHITECTURE.md), [Security](docs/SECURITY.md), [Recovery](docs/RECOVERY.md), [Providers](docs/PROVIDERS.md), [Evidence formats](docs/EVIDENCE_FORMATS.md), and [Neon deployment](docs/DEPLOYMENT-NEON.md).
+See [Architecture](docs/ARCHITECTURE.md), [Recovery](docs/RECOVERY.md), [Providers](docs/PROVIDERS.md), [Evidence formats](docs/EVIDENCE_FORMATS.md), and [Neon deployment](docs/DEPLOYMENT-NEON.md).
 
-## License and attribution
+## License
 
-Apache-2.0. This is an unofficial community project and is not affiliated with FLOP Labs or Technocore. See `NOTICE`.
+This project is licensed under the [MIT License](LICENSE).

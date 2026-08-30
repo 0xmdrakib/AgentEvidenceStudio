@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Administrator-hosted browser workspace for replayable agent evidence, conflict-safe memory, and source-bound research.",
-  "license": "Apache-2.0",
+  "license": "MIT",
   "workspaces": [
     "packages/*"
   ],
