@@ -1,0 +1,13 @@
+{
+  "name": "@aes/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@aes/contracts": "0.1.0",
+    "zod": "4.5.2"
+  }
+}

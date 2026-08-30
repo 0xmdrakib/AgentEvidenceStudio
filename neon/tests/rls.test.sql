@@ -1,0 +1,12 @@
+begin;
+select plan(8);
+select has_table('public', 'bundle_versions', 'bundle version metadata exists');
+select has_table('public', 'published_reports', 'public share records exist');
+select policies_are('public', 'bundle_versions', array['bundle_versions_owner_select', 'bundle_versions_owner_insert'], 'bundle versions are append-only for users');
+select policies_are('public', 'published_reports', array['reports_public_select_live', 'reports_owner_select', 'reports_owner_insert', 'reports_owner_update'], 'report publication and revocation are explicit');
+select is((select count(*)::int from information_schema.role_table_grants where grantee = 'anonymous' and table_schema = 'public' and table_name = 'bundle_versions'), 0, 'anonymous has no bundle metadata grant');
+select is((select count(*)::int from information_schema.role_table_grants where grantee = 'authenticated' and table_schema = 'public' and table_name = 'bundle_versions' and privilege_type in ('UPDATE','DELETE')), 0, 'bundle versions cannot be modified');
+select is((select count(*)::int from pg_policies where schemaname = 'public' and tablename = 'workspaces'), 4, 'workspace CRUD is owner-scoped');
+select is((select count(*)::int from pg_indexes where schemaname = 'public' and indexname = 'idx_bundle_versions_owner_run'), 1, 'bundle history query is indexed');
+select * from finish();
+rollback;
