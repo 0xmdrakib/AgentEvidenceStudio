@@ -2,187 +2,198 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft,
+  ArrowRight,
   CheckCircle2,
   Cloud,
   LockKeyhole,
-  UserPlus,
+  ShieldCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { getNeon } from '@/lib/neon';
+import { getCurrentNeonUser, getNeon, signInWithGoogle } from '@/lib/neon';
+
+function GoogleMark() {
+  return (
+    <span
+      aria-hidden="true"
+      className="grid h-7 w-7 place-items-center rounded-full bg-white text-base font-black text-[#4285f4] shadow-sm"
+    >
+      G
+    </span>
+  );
+}
 
 export default function AuthPage() {
+  const searchParams = useSearchParams();
   const neon = getNeon();
-  const [mode, setMode] = useState<'signin' | 'signup'>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [message, setMessage] = useState('');
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const next = useMemo(() => {
+    const candidate = searchParams.get('next') ?? '/';
+    return candidate.startsWith('/') && !candidate.startsWith('//')
+      ? candidate
+      : '/';
+  }, [searchParams]);
+  const [user, setUser] = useState<{
+    email: string | null;
+    name: string | null;
+  } | null>(null);
+  const [checking, setChecking] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState(
+    searchParams.get('error')
+      ? 'Google sign-in could not be completed. Please try again.'
+      : '',
+  );
+
   useEffect(() => {
-    void neon?.auth
-      .getUser()
-      .then((result: any) =>
-        setUserEmail(result?.data?.user?.email ?? result?.user?.email ?? null),
-      );
-  }, [neon]);
-  const submit = async () => {
-    if (!neon) return;
+    void getCurrentNeonUser()
+      .then((current) =>
+        setUser(current ? { email: current.email, name: current.name } : null),
+      )
+      .finally(() => setChecking(false));
+  }, []);
+
+  const signIn = async () => {
     setBusy(true);
     setMessage('');
     try {
-      const result =
-        mode === 'signup'
-          ? await neon.auth.signUp({
-              email,
-              password,
-              options: { data: { name } },
-            })
-          : await neon.auth.signInWithPassword({ email, password });
-      const error = (result as any)?.error;
-      if (error) throw error;
-      setUserEmail(email);
-      setMessage(
-        mode === 'signup'
-          ? 'Account created and private cloud unlocked.'
-          : 'Signed in. Private cloud history is available.',
-      );
+      await signInWithGoogle(next);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : String(error));
-    } finally {
+      setMessage(
+        error instanceof Error ? error.message : 'Google sign-in failed.',
+      );
       setBusy(false);
     }
   };
+
+  const signOut = async () => {
+    if (!neon) return;
+    setBusy(true);
+    await neon.auth.signOut();
+    setUser(null);
+    setBusy(false);
+  };
+
   return (
-    <main className="grid min-h-screen place-items-center p-4">
-      <section className="paper w-full max-w-md rounded-[28px] p-6 sm:p-8">
-        <Link href="/" className="mb-5 inline-flex" aria-label="Agent Evidence Studio home">
-          <Image src="/brand/agent-evidence-logo.svg" alt="" aria-hidden="true" width={220} height={43} unoptimized className="h-10 w-auto max-w-[220px]" />
-        </Link>
-        <Link
-          href="/settings"
-          className="inline-flex min-h-11 items-center gap-2 text-sm font-bold"
-        >
-          <ArrowLeft size={17} />
-          Back to settings
-        </Link>
-        <span className="mt-6 grid h-14 w-14 place-items-center rounded-2xl bg-[#c8ff65]">
-          <Cloud />
-        </span>
-        <h1 className="display mt-5 text-4xl">Neon private cloud</h1>
-        <p className="mt-4 text-sm leading-6 text-[var(--muted-ink)]">
-          Neon Auth protects owner-scoped metadata and immutable encrypted bundle
-          versions. Your workspace passphrase and unwrapped key never leave your
-          device.
-        </p>
-        {!neon ? (
-          <div className="mt-6 rounded-2xl bg-[#fff0ed] p-4 text-sm leading-6">
-            Neon Auth and Data API URLs are not connected yet. Complete the
-            one-time Neon project setup, then add the public endpoints to
-            Vercel.
-          </div>
-        ) : userEmail ? (
-          <div className="mt-6 rounded-2xl bg-[#edf7f3] p-4">
-            <p className="flex items-center gap-2 font-extrabold">
-              <CheckCircle2 size={18} />
-              Private cloud connected
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted-ink)]">{userEmail}</p>
+    <main className="grid min-h-screen place-items-center px-4 py-8 sm:px-6">
+      <section className="paper grid w-full max-w-4xl overflow-hidden rounded-[30px] lg:grid-cols-[1.05fr_.95fr]">
+        <div className="bg-[var(--ink)] p-6 text-[#fffaf0] sm:p-9">
+          <Link
+            href="/"
+            className="inline-flex"
+            aria-label="Agent Evidence Studio home"
+          >
+            <Image
+              src="/brand/agent-evidence-logo.svg"
+              alt=""
+              aria-hidden="true"
+              width={220}
+              height={43}
+              unoptimized
+              className="h-10 w-auto max-w-[220px] brightness-0 invert"
+            />
+          </Link>
+          <span className="mt-12 grid h-14 w-14 place-items-center rounded-2xl bg-[#c8ff65] text-[var(--ink)]">
+            <Cloud />
+          </span>
+          <p className="eyebrow mt-7 text-white/55">One secure account</p>
+          <h1 className="display mt-3 text-4xl sm:text-5xl">
+            Your evidence stays yours.
+          </h1>
+          <p className="mt-5 max-w-md text-sm leading-7 text-white/68">
+            Sign in with Google to enter your private workspace. The
+            administrator provides the database and hosted service; members
+            never add credentials, infrastructure, or API keys.
+          </p>
+          <ul className="mt-8 space-y-3 text-sm text-white/78">
+            <li className="flex items-center gap-3">
+              <ShieldCheck className="text-[#c8ff65]" size={18} />
+              Owner-isolated Neon records
+            </li>
+            <li className="flex items-center gap-3">
+              <LockKeyhole className="text-[#c8ff65]" size={18} />
+              10 MB hard encrypted-history quota
+            </li>
+            <li className="flex items-center gap-3">
+              <CheckCircle2 className="text-[#c8ff65]" size={18} />
+              No password stored by this app
+            </li>
+          </ul>
+        </div>
+        <div className="flex flex-col justify-center p-6 sm:p-9">
+          <p className="eyebrow text-[var(--muted-ink)]">Member access</p>
+          <h2 className="mt-3 text-3xl font-extrabold tracking-tight">
+            Continue with Google
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-[var(--muted-ink)]">
+            Your Google identity becomes the permanent owner key for quota,
+            encrypted history, and hosted activity limits.
+          </p>
+          {!neon ? (
+            <div className="mt-7 rounded-2xl border border-[#e5c66f] bg-[#fff8df] p-4 text-sm leading-6">
+              Google sign-in is waiting for the administrator to finish Neon
+              Auth configuration.
+            </div>
+          ) : checking ? (
+            <div className="mt-7 h-12 animate-pulse rounded-xl bg-[var(--muted)]" />
+          ) : user ? (
+            <div className="mt-7 rounded-2xl border bg-[#edf7f3] p-4">
+              <p className="font-extrabold">Signed in</p>
+              <p className="mt-1 text-sm text-[var(--muted-ink)]">
+                {user.name ?? user.email ?? 'Google account'}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <Button
+                  nativeButton={false}
+                  render={<Link href={next} />}
+                  className="min-h-11 rounded-xl bg-[var(--ink)] !text-white"
+                >
+                  Open workspace <ArrowRight />
+                </Button>
+                <Button
+                  variant="outline"
+                  className="min-h-11 rounded-xl bg-white"
+                  disabled={busy}
+                  onClick={signOut}
+                >
+                  Sign out
+                </Button>
+              </div>
+            </div>
+          ) : (
             <Button
-              className="mt-4"
-              variant="outline"
-              onClick={() => neon.auth.signOut().then(() => setUserEmail(null))}
+              className="mt-7 min-h-13 w-full justify-center rounded-2xl bg-white text-[var(--ink)] shadow-[0_10px_28px_rgb(16_35_30/12%)] ring-1 ring-[var(--line)] hover:bg-[#f8f4ec]"
+              disabled={busy}
+              onClick={signIn}
             >
-              Sign out
+              <GoogleMark />
+              {busy ? 'Opening Google…' : 'Continue with Google'}
             </Button>
-          </div>
-        ) : (
-          <div className="mt-6">
-            <div className="grid grid-cols-2 rounded-xl bg-[#f0ebe2] p-1 text-sm font-bold">
-              <button
-                className={`min-h-10 rounded-lg ${mode === 'signin' ? 'bg-white shadow-sm' : ''}`}
-                onClick={() => setMode('signin')}
-              >
-                Sign in
-              </button>
-              <button
-                className={`min-h-10 rounded-lg ${mode === 'signup' ? 'bg-white shadow-sm' : ''}`}
-                onClick={() => setMode('signup')}
-              >
-                Create account
-              </button>
-            </div>
-            <div className="mt-5 space-y-4">
-              {mode === 'signup' && (
-                <div>
-                  <Label htmlFor="name">Display name</Label>
-                  <Input
-                    id="name"
-                    className="mt-2 min-h-11"
-                    autoComplete="name"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                  />
-                </div>
-              )}
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  className="mt-2 min-h-11"
-                  type="email"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              </div>
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  className="mt-2 min-h-11"
-                  type="password"
-                  autoComplete={
-                    mode === 'signup' ? 'new-password' : 'current-password'
-                  }
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-                <p className="mt-2 text-xs text-[var(--muted-ink)]">
-                  Use at least 12 characters. This is separate from the bundle
-                  passphrase.
-                </p>
-              </div>
-              <Button
-                className="min-h-11 w-full bg-[#17201d] text-white"
-                disabled={
-                  !email.includes('@') ||
-                  password.length < 12 ||
-                  (mode === 'signup' && !name.trim()) ||
-                  busy
-                }
-                onClick={submit}
-              >
-                {mode === 'signup' ? <UserPlus /> : <LockKeyhole />}
-                {busy
-                  ? 'Please wait…'
-                  : mode === 'signup'
-                    ? 'Create secure account'
-                    : 'Unlock private cloud'}
-              </Button>
-              {message && (
-                <output className="block rounded-xl bg-[var(--muted)] p-3 text-sm">
-                  {message}
-                </output>
-              )}
-            </div>
-          </div>
-        )}
+          )}
+          {message && (
+            <output className="mt-4 block rounded-xl bg-[#fff0ed] p-3 text-sm text-[#8d2e27]">
+              {message}
+            </output>
+          )}
+          <p className="mt-7 text-xs leading-5 text-[var(--muted-ink)]">
+            By continuing, you agree to the{' '}
+            <Link
+              href="/terms"
+              className="font-bold underline underline-offset-4"
+            >
+              Terms
+            </Link>{' '}
+            and acknowledge the{' '}
+            <Link
+              href="/privacy"
+              className="font-bold underline underline-offset-4"
+            >
+              Privacy Policy
+            </Link>
+            .
+          </p>
+        </div>
       </section>
     </main>
   );

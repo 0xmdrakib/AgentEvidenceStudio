@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(15);
 select has_table('public', 'bundle_versions', 'bundle version metadata exists');
 select has_table('public', 'published_reports', 'public share records exist');
 select policies_are('public', 'bundle_versions', array['bundle_versions_owner_select', 'bundle_versions_owner_insert'], 'bundle versions are append-only for users');
@@ -8,5 +8,12 @@ select is((select count(*)::int from information_schema.role_table_grants where 
 select is((select count(*)::int from information_schema.role_table_grants where grantee = 'authenticated' and table_schema = 'public' and table_name = 'bundle_versions' and privilege_type in ('UPDATE','DELETE')), 0, 'bundle versions cannot be modified');
 select is((select count(*)::int from pg_policies where schemaname = 'public' and tablename = 'workspaces'), 4, 'workspace CRUD is owner-scoped');
 select is((select count(*)::int from pg_indexes where schemaname = 'public' and indexname = 'idx_bundle_versions_owner_run'), 1, 'bundle history query is indexed');
+select has_table('public', 'account_limits', 'per-member hard limits exist');
+select has_table('public', 'account_daily_usage', 'daily cloud-write counters exist');
+select has_table('public', 'hosted_request_buckets', 'server burst counters exist');
+select has_view('public', 'my_account_usage', 'members can inspect their own usage');
+select policies_are('public', 'account_limits', array['account_limits_owner_create_default', 'account_limits_owner_select'], 'members can read and initialize only the default plan');
+select has_trigger('public', 'bundle_versions', 'bundle_versions_hard_quota', 'bundle writes are guarded by a database quota trigger');
+select has_trigger('public', 'published_reports', 'published_reports_hard_quota', 'report writes are guarded by a database quota trigger');
 select * from finish();
 rollback;

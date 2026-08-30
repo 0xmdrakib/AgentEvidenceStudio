@@ -4,15 +4,17 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import {
   CheckCircle2,
-  Cloud,
   Globe2,
+  HardDrive,
   KeyRound,
   LockKeyhole,
+  LogOut,
   Plus,
   RadioTower,
   SearchCheck,
   ServerCog,
   ShieldCheck,
+  UserRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -20,20 +22,23 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeading } from '@/components/page-heading';
 import { useStudio } from '@/components/studio-provider';
-import { getNeon, listCloudBundles } from '@/lib/neon';
+import { getAccountUsage, getCurrentNeonUser, getNeon } from '@/lib/neon';
 
 export default function SettingsPage() {
   const { runnerOnline, client } = useStudio();
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeading
-        eyebrow="Admin-hosted control plane"
-        title="Settings"
-        description="The administrator operates one secure hosted service. Members sign in from any browser; no desktop agent, executable, or localhost runner is required."
+        eyebrow="Account + security"
+        title="Workspace settings"
+        description="Your Google account owns one isolated workspace with clear storage and activity limits. Infrastructure and provider credentials are managed by the administrator."
       />
       <div className="grid gap-5 xl:grid-cols-2">
+        <div className="xl:col-span-2">
+          <AccountSection />
+        </div>
         <HostedEngine ready={runnerOnline} />
-        <CloudSection />
+        <SecuritySection />
         <div className="xl:col-span-2">
           <AdminProvider ready={runnerOnline} />
         </div>
@@ -82,51 +87,183 @@ function HostedEngine({ ready }: { ready: boolean }) {
   );
 }
 
-function CloudSection() {
+function AccountSection() {
   const configured = Boolean(getNeon());
-  const [versions, setVersions] = useState<number | null>(null);
+  const [user, setUser] =
+    useState<Awaited<ReturnType<typeof getCurrentNeonUser>>>(null);
+  const [usage, setUsage] = useState<Awaited<
+    ReturnType<typeof getAccountUsage>
+  > | null>(null);
+  const [loading, setLoading] = useState(configured);
   useEffect(() => {
-    if (configured)
-      void listCloudBundles()
-        .then((items) => setVersions(items.length))
-        .catch(() => setVersions(null));
+    if (!configured) return;
+    void Promise.all([getCurrentNeonUser(), getAccountUsage()])
+      .then(([currentUser, currentUsage]) => {
+        setUser(currentUser);
+        setUsage(currentUsage);
+      })
+      .catch(() => undefined)
+      .finally(() => setLoading(false));
   }, [configured]);
+  const used = usage?.storage_used_bytes ?? 0;
+  const limit = usage?.storage_limit_bytes ?? 10 * 1024 * 1024;
+  const percentage = Math.min(
+    100,
+    Math.round((used / Math.max(limit, 1)) * 100),
+  );
+  const signOut = async () => {
+    await getNeon()?.auth.signOut();
+    window.location.assign('/auth');
+  };
   return (
-    <section className="paper rounded-[24px] p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#f1ede5]">
-            <Cloud size={20} />
-          </span>
-          <div>
-            <p className="eyebrow text-[var(--muted-ink)]">
-              Identity + history
-            </p>
-            <h2 className="mt-1 text-lg font-extrabold">Neon private cloud</h2>
+    <section className="paper overflow-hidden rounded-[26px]">
+      <div className="grid lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,.85fr)]">
+        <div className="p-5 sm:p-7">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#e9ffc1]">
+                <UserRound size={21} />
+              </span>
+              <div>
+                <p className="eyebrow text-[var(--muted-ink)]">
+                  Google identity
+                </p>
+                <h2 className="mt-1 text-xl font-extrabold">
+                  {user?.name ??
+                    user?.email ??
+                    (loading ? 'Loading account…' : 'Member account')}
+                </h2>
+              </div>
+            </div>
+            <span
+              className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${configured ? 'bg-[#dcefea] text-[#225f4d]' : 'bg-[#fff0bd] text-[#6d5518]'}`}
+            >
+              {configured ? 'Protected' : 'Admin setup needed'}
+            </span>
+          </div>
+          <p className="mt-5 max-w-2xl text-sm leading-6 text-[var(--muted-ink)]">
+            This account ID is the owner key for every private row, quota
+            counter, and hosted request. Changing browsers does not reset
+            limits, and members cannot increase their own plan.
+          </p>
+          {configured && user && (
+            <Button
+              variant="outline"
+              className="mt-5 min-h-11 rounded-xl bg-white"
+              onClick={signOut}
+            >
+              <LogOut />
+              Sign out
+            </Button>
+          )}
+          {!configured && (
+            <Button
+              nativeButton={false}
+              render={<Link href="/auth" />}
+              className="mt-5 min-h-11 rounded-xl bg-[var(--ink)] !text-white"
+            >
+              View identity setup
+            </Button>
+          )}
+        </div>
+        <div className="border-t bg-[#f5f0e8] p-5 sm:p-7 lg:border-l lg:border-t-0">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-white">
+                <HardDrive size={20} />
+              </span>
+              <div>
+                <p className="eyebrow text-[var(--muted-ink)]">Private cloud</p>
+                <h3 className="mt-1 font-extrabold">10 MB member plan</h3>
+              </div>
+            </div>
+            <strong className="text-sm">{percentage}%</strong>
+          </div>
+          <div className="mt-5 h-2.5 overflow-hidden rounded-full bg-white ring-1 ring-[var(--line)]">
+            <div
+              className="h-full rounded-full bg-[var(--teal)] transition-[width]"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <div className="mt-3 flex items-center justify-between text-xs font-bold text-[var(--muted-ink)]">
+            <span>{formatBytes(used)} used</span>
+            <span>{formatBytes(limit)} total</span>
+          </div>
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <QuotaStat
+              label="Versions"
+              value={`${usage?.bundle_versions ?? 0} / ${usage?.version_limit ?? 100}`}
+            />
+            <QuotaStat
+              label="Reports"
+              value={`${usage?.published_reports ?? 0} / ${usage?.report_limit ?? 20}`}
+            />
+            <QuotaStat
+              label="Cloud writes today"
+              value={`${usage?.cloud_writes_today ?? 0} / ${usage?.daily_cloud_write_limit ?? 50}`}
+            />
+            <QuotaStat
+              label="Hosted runs today"
+              value={`${usage?.hosted_runs_today ?? 0} / ${usage?.daily_hosted_run_limit ?? 5}`}
+            />
           </div>
         </div>
-        <span className="rounded-full bg-[#f1ebe2] px-3 py-1 text-[10px] font-black uppercase">
-          {configured ? 'Connected' : 'Needs setup'}
-        </span>
       </div>
-      <p className="mt-5 text-sm leading-6 text-[var(--muted-ink)]">
-        Neon Auth isolates every member. Evidence bundles are encrypted in the
-        browser before append-only, owner-scoped Neon rows receive them; the
-        workspace passphrase is never sent to the host.
-      </p>
-      <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Button
-          nativeButton={false}
-          render={<Link href="/auth" />}
-          className="min-h-11 rounded-xl bg-[var(--ink)] !text-white"
-        >
-          {configured ? 'Open account' : 'Connect account'}
-        </Button>
-        {versions !== null && (
-          <span className="rounded-full bg-[#e9ffc1] px-3 py-2 text-xs font-extrabold">
-            {versions} encrypted version{versions === 1 ? '' : 's'}
-          </span>
-        )}
+    </section>
+  );
+}
+
+function QuotaStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border bg-white p-3">
+      <p className="text-[11px] font-bold text-[var(--muted-ink)]">{label}</p>
+      <p className="mt-1 text-lg font-black tracking-tight">{value}</p>
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function SecuritySection() {
+  const protections = [
+    ['Google-only access', 'No password form or anonymous workspace activity.'],
+    [
+      'Database isolation',
+      'Postgres RLS binds every private row to one authenticated owner.',
+    ],
+    [
+      'Hard quotas',
+      'Database triggers enforce storage, record, report, and daily write caps.',
+    ],
+    [
+      'Abuse control',
+      'Origin checks plus account burst and daily hosted-run limits.',
+    ],
+  ];
+  return (
+    <section className="paper rounded-[24px] p-5 sm:p-6">
+      <div className="flex items-center gap-3">
+        <span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#e9e0ff]">
+          <ShieldCheck size={20} />
+        </span>
+        <div>
+          <p className="eyebrow text-[var(--muted-ink)]">Protection</p>
+          <h2 className="mt-1 text-lg font-extrabold">Balanced security</h2>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        {protections.map(([title, body]) => (
+          <div key={title} className="rounded-2xl border bg-[#fcf9f3] p-3">
+            <p className="text-sm font-extrabold">{title}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted-ink)]">
+              {body}
+            </p>
+          </div>
+        ))}
       </div>
     </section>
   );

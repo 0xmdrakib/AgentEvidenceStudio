@@ -24,7 +24,8 @@ One administrator-hosted deployment serves every member. Users work entirely in 
 - Source-linked claims, counterevidence, bounded excerpts, verdicts, and unresolved research questions
 - AES-256-GCM encrypted `.aesrun` export, import, and append-only private cloud history
 - Redacted `aesreport/v1` public reports with explicit publication controls
-- Neon authentication and owner-scoped Postgres access
+- Google-only Neon authentication and owner-scoped Postgres access
+- Database-enforced 10 MB storage, record-count, write-rate, and hosted-run quotas per member
 - Responsive desktop, tablet, and mobile interface with keyboard and reduced-motion support
 
 ## Core modules
@@ -51,6 +52,7 @@ One administrator-hosted deployment serves every member. Users work entirely in 
 
 - Vercel serves the browser application and protected server functions.
 - Neon Auth identifies members and Neon Postgres enforces owner-scoped access.
+- Every member receives the same administrator-controlled 10 MB plan; database triggers prevent clients from bypassing storage and activity caps.
 - Sensitive run bundles are encrypted in the browser before private cloud storage.
 - Provider and database credentials remain server-side; members never supply executables, API keys, database passwords, or localhost endpoints.
 - Technocore interoperability publishes bounded signed summaries and digests rather than complete private run state.
