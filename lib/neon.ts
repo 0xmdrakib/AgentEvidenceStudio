@@ -175,6 +175,7 @@ export async function getCurrentNeonUser(): Promise<{
   id: string;
   email: string | null;
   name: string | null;
+  avatarUrl: string | null;
 } | null> {
   const neon = getNeon();
   if (!neon) return null;
@@ -185,6 +186,13 @@ export async function getCurrentNeonUser(): Promise<{
     id: user.id,
     email: user.email ?? null,
     name: user.name ?? user.user_metadata?.name ?? null,
+    avatarUrl:
+      user.image ??
+      user.avatar_url ??
+      user.picture ??
+      user.user_metadata?.avatar_url ??
+      user.user_metadata?.picture ??
+      null,
   };
 }
 

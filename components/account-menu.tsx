@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -99,18 +100,26 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
     <div ref={root} className="relative">
       <Button
         variant="outline"
-        className="min-h-11 rounded-xl bg-white px-2.5 sm:px-3"
-        aria-label="Open account menu"
+        className={`${compact ? 'px-2' : 'px-2.5'} min-h-11 rounded-xl bg-white`}
+        aria-label={`Open account menu for ${label}`}
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
       >
-        <span className="grid h-7 w-7 place-items-center rounded-full bg-[#e9ffc1] text-xs font-black">
-          {initial}
-        </span>
-        {!compact && (
-          <span className="max-w-36 truncate text-sm font-extrabold">
-            {label}
+        {user.avatarUrl ? (
+          <Image
+            src={user.avatarUrl}
+            alt=""
+            aria-hidden="true"
+            referrerPolicy="no-referrer"
+            width={32}
+            height={32}
+            unoptimized
+            className="h-8 w-8 rounded-full object-cover ring-1 ring-black/10"
+          />
+        ) : (
+          <span className="grid h-8 w-8 place-items-center rounded-full bg-[#e9ffc1] text-xs font-black">
+            {initial}
           </span>
         )}
         <ChevronDown size={15} />
