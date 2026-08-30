@@ -12,7 +12,7 @@ import {
   sha256,
   threeWayMerge,
 } from '@aes/core';
-import { getNeonSession } from './neon';
+import { getNeonSession, NeonSignInRequiredError } from './neon';
 
 type StoredConflict = {
   id: string;
@@ -102,6 +102,7 @@ export class RunnerClient {
       body: JSON.stringify({ action: 'jury.run', question }),
     });
     const data = (await response.json()) as { run?: RunRecord; error?: string };
+    if (response.status === 401) throw new NeonSignInRequiredError();
     if (!response.ok || !data.run)
       throw new Error(data.error ?? 'Hosted Research Jury failed.');
     this.runs = [

@@ -94,6 +94,39 @@ export const DEFAULT_ACCOUNT_LIMITS = {
   dailyHostedRuns: 5,
 } as const;
 
+export class NeonSignInRequiredError extends Error {
+  readonly code = 'AUTH_REQUIRED';
+
+  constructor() {
+    super('Sign in with Google to continue this action.');
+    this.name = 'NeonSignInRequiredError';
+  }
+}
+
+export function isNeonSignInRequiredError(
+  error: unknown,
+): error is NeonSignInRequiredError {
+  return (
+    error instanceof NeonSignInRequiredError ||
+    (error instanceof Error &&
+      'code' in error &&
+      error.code === 'AUTH_REQUIRED')
+  );
+}
+
+export function getGoogleSignInHref(returnTo = '/'): string {
+  const safePath =
+    returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/';
+  return `/auth?next=${encodeURIComponent(safePath)}`;
+}
+
+export function redirectToGoogleSignIn(returnTo?: string): void {
+  if (typeof window === 'undefined') return;
+  const destination =
+    returnTo ?? `${window.location.pathname}${window.location.search}`;
+  window.location.assign(getGoogleSignInHref(destination));
+}
+
 function createNeonClient(
   authUrl: string,
   dataApiUrl: string,
@@ -181,7 +214,7 @@ export async function getNeonSession(): Promise<{
   const userId = session?.user?.id;
   const accessToken = session?.access_token ?? session?.token;
   if (!userId || !accessToken)
-    throw new Error('Sign in before accessing private cloud history.');
+    throw new NeonSignInRequiredError();
   return { userId, accessToken };
 }
 

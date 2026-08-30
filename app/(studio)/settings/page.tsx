@@ -8,6 +8,7 @@ import {
   HardDrive,
   KeyRound,
   LockKeyhole,
+  LogIn,
   LogOut,
   Plus,
   RadioTower,
@@ -31,7 +32,7 @@ export default function SettingsPage() {
       <PageHeading
         eyebrow="Account + security"
         title="Workspace settings"
-        description="Your Google account owns one isolated workspace with clear storage and activity limits. Infrastructure and provider credentials are managed by the administrator."
+        description="Browse the studio without an account. Google sign-in is required only for hosted execution, cloud storage, and publishing."
       />
       <div className="grid gap-5 xl:grid-cols-2">
         <div className="xl:col-span-2">
@@ -97,10 +98,10 @@ function AccountSection() {
   const [loading, setLoading] = useState(configured);
   useEffect(() => {
     if (!configured) return;
-    void Promise.all([getCurrentNeonUser(), getAccountUsage()])
-      .then(([currentUser, currentUsage]) => {
+    void getCurrentNeonUser()
+      .then(async (currentUser) => {
         setUser(currentUser);
-        setUsage(currentUsage);
+        setUsage(currentUser ? await getAccountUsage() : null);
       })
       .catch(() => undefined)
       .finally(() => setLoading(false));
@@ -113,7 +114,7 @@ function AccountSection() {
   );
   const signOut = async () => {
     await getNeon()?.auth.signOut();
-    window.location.assign('/auth');
+    window.location.assign('/');
   };
   return (
     <section className="paper overflow-hidden rounded-[26px]">
@@ -136,9 +137,13 @@ function AccountSection() {
               </div>
             </div>
             <span
-              className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${configured ? 'bg-[#dcefea] text-[#225f4d]' : 'bg-[#fff0bd] text-[#6d5518]'}`}
+              className={`rounded-full px-3 py-1 text-[10px] font-black uppercase ${user ? 'bg-[#dcefea] text-[#225f4d]' : 'bg-[#fff0bd] text-[#6d5518]'}`}
             >
-              {configured ? 'Protected' : 'Admin setup needed'}
+              {user
+                ? 'Signed in'
+                : configured
+                  ? 'Login to save'
+                  : 'Admin setup needed'}
             </span>
           </div>
           <p className="mt-5 max-w-2xl text-sm leading-6 text-[var(--muted-ink)]">
@@ -154,6 +159,16 @@ function AccountSection() {
             >
               <LogOut />
               Sign out
+            </Button>
+          )}
+          {configured && !loading && !user && (
+            <Button
+              nativeButton={false}
+              render={<Link href="/auth?next=/settings" />}
+              className="mt-5 min-h-11 rounded-xl bg-[var(--ink)] !text-white"
+            >
+              <LogIn />
+              Login with Google
             </Button>
           )}
           {!configured && (
@@ -230,7 +245,10 @@ function formatBytes(bytes: number): string {
 
 function SecuritySection() {
   const protections = [
-    ['Google-only access', 'No password form or anonymous workspace activity.'],
+    [
+      'Google-protected writes',
+      'Hosted runs, cloud saves, and publishing require Google identity.',
+    ],
     [
       'Database isolation',
       'Postgres RLS binds every private row to one authenticated owner.',

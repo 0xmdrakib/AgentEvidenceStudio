@@ -1,6 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { assertJsonRequest, assertTrustedOrigin } from '../lib/server-auth.ts';
-import { DEFAULT_ACCOUNT_LIMITS } from '../lib/neon.ts';
+import {
+  DEFAULT_ACCOUNT_LIMITS,
+  getGoogleSignInHref,
+  isNeonSignInRequiredError,
+  NeonSignInRequiredError,
+} from '../lib/neon.ts';
 
 const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
 
@@ -73,5 +78,17 @@ describe('hosted request boundary', () => {
       dailyCloudWrites: 50,
       dailyHostedRuns: 5,
     });
+  });
+
+  it('keeps browsing public and sends protected actions back to their route', () => {
+    expect(getGoogleSignInHref('/jury/new?mode=hosted')).toBe(
+      '/auth?next=%2Fjury%2Fnew%3Fmode%3Dhosted',
+    );
+    expect(getGoogleSignInHref('https://evil.example')).toBe(
+      '/auth?next=%2F',
+    );
+    expect(isNeonSignInRequiredError(new NeonSignInRequiredError())).toBe(
+      true,
+    );
   });
 });

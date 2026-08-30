@@ -4,6 +4,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import type { EncryptedRunBundle, ProviderProfile, RunRecord } from '@aes/contracts';
 import { decryptBundle } from '@aes/core';
 import { RunnerClient } from '@/lib/runner-client';
+import {
+  isNeonSignInRequiredError,
+  redirectToGoogleSignIn,
+} from '@/lib/neon';
 
 interface StudioState {
   runnerOnline: boolean; vaultUnlocked: boolean; loading: boolean;
@@ -30,7 +34,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   }, [client]);
   useEffect(() => { void refresh(); }, [refresh]);
   const saveProvider = async (profile: ProviderProfile) => { try { await client.saveProvider(profile); await refresh(); } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); throw caught; } };
-  const startJury = async (question: string, providerId: string) => { setError(null); try { const { run } = await client.runJury(question, providerId); await refresh(); return run; } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); throw caught; } };
+  const startJury = async (question: string, providerId: string) => { setError(null); try { const { run } = await client.runJury(question, providerId); await refresh(); return run; } catch (caught) { if (isNeonSignInRequiredError(caught)) redirectToGoogleSignIn(); else setError(caught instanceof Error ? caught.message : String(caught)); throw caught; } };
   const importBundle = async (bundle: EncryptedRunBundle, passphrase: string) => { try { const run = await decryptBundle(bundle, passphrase); setRuns((current) => [run, ...current.filter((item) => item.id !== run.id)]); return run; } catch (caught) { setError(caught instanceof Error ? caught.message : String(caught)); throw caught; } };
   return <StudioContext.Provider value={{ runnerOnline, vaultUnlocked, loading, error, clearError: () => setError(null), runs, providers, conflicts, refresh, saveProvider, startJury, importBundle, client }}>{children}</StudioContext.Provider>;
 }

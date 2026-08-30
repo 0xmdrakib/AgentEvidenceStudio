@@ -10,6 +10,8 @@ async function ready(page: Page) {
 test('workspace is English-only and exposes the hosted primary flow', async ({ page }) => {
   await page.route('**/api/runner', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ready', mode: 'hosted', configured: true, model: 'gpt-5.6-sol' }) }));
   await page.goto('/'); await ready(page);
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('button', { name: 'Login' }).filter({ visible: true })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'See, merge, and verify every agent decision.' })).toBeVisible();
   await expect(page.getByText(/Secure hosted execution works from any browser/)).toBeVisible();
   await expect(page.getByText('বাংলা')).toHaveCount(0);
