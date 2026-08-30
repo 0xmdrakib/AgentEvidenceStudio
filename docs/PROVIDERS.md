@@ -6,7 +6,7 @@ The production product exposes one administrator-managed Research Jury provider.
 
 The Vercel function uses:
 
-- administrator-selected `OPENAI_MODEL`;
+- built-in hosted model selection;
 - server-only `OPENAI_API_KEY`;
 - `store: false`;
 - hosted web search with bounded tool calls;
@@ -15,6 +15,6 @@ The Vercel function uses:
 - one validation-repair attempt per role;
 - hashed `safety_identifier` and scoped prompt-cache keys.
 
-The default model in `.env.example` is `gpt-5.6-sol`. Change it only in the administrator environment after verifying account access and cost.
+The hosted model and reasoning limits are versioned with the application so deployments use one reviewed configuration.
 
 The Flight Recorder stores role outputs, sources, provider response ID/model/status, token usage, delivery state, and cryptographic digests. It does not store hidden reasoning.

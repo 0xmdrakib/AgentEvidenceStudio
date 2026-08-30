@@ -16,6 +16,9 @@ import { validateProviderOutput } from '@aes/providers';
 type FetchLike = typeof fetch;
 type RoleName = 'researcher' | 'challenger' | 'adjudicator';
 
+export const HOSTED_RESEARCH_MODEL = 'gpt-5.6-sol';
+const HOSTED_REASONING_EFFORT = 'medium';
+
 export interface HostedJuryOptions {
   question: string;
   userId: string;
@@ -68,7 +71,7 @@ async function invokeStructured(input: { role: RoleName; prompt: string; schema:
       include: ['web_search_call.action.sources'],
       max_tool_calls: 6,
       max_output_tokens: 8_000,
-      reasoning: { effort: process.env.OPENAI_REASONING_EFFORT ?? 'medium' },
+      reasoning: { effort: HOSTED_REASONING_EFFORT },
       text: { format: { type: 'json_schema', name: `aes_${input.role}`, strict: true, schema: input.schema } },
       safety_identifier: await safetyIdentifier(options.userId),
       prompt_cache_key: `aes:${input.role}:${(await sha256(options.question)).slice(0, 24)}`,

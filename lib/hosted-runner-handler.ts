@@ -1,4 +1,4 @@
-import { runHostedJury } from './hosted-jury.ts';
+import { HOSTED_RESEARCH_MODEL, runHostedJury } from './hosted-jury.ts';
 import { assertTrustedOrigin, verifyNeonUser } from './server-auth.ts';
 import { reserveHostedRun } from './hosted-usage.ts';
 
@@ -11,7 +11,7 @@ export const hostedRunnerHandler = {
     try {
       if (request.method === 'GET') {
         const configured = Boolean(process.env.OPENAI_API_KEY && process.env.DATABASE_URL && process.env.NEON_AUTH_JWKS_URL);
-        return json({ status: configured ? 'ready' : 'configuration_required', mode: 'hosted', configured, model: process.env.OPENAI_MODEL ?? 'gpt-5.6-sol' });
+        return json({ status: configured ? 'ready' : 'configuration_required', mode: 'hosted', configured, model: HOSTED_RESEARCH_MODEL });
       }
       if (request.method !== 'POST') return json({ error: 'Method not allowed.' }, 405);
       assertTrustedOrigin(request);
@@ -27,7 +27,7 @@ export const hostedRunnerHandler = {
         question,
         userId,
         apiKey: process.env.OPENAI_API_KEY!,
-        model: process.env.OPENAI_MODEL ?? 'gpt-5.6-sol',
+        model: HOSTED_RESEARCH_MODEL,
       });
       return json({ run, usage }, 201);
     } catch (error: any) {

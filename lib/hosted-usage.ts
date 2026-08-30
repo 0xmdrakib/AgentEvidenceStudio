@@ -1,9 +1,11 @@
 import { Client } from 'pg';
 
+const HOSTED_DAILY_RUN_LIMIT = 5;
+
 export async function reserveHostedRun(userId: string): Promise<{ used: number; limit: number }> {
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error('DATABASE_URL is not configured.');
-  const limit = Math.max(1, Math.min(100, Number(process.env.OPENAI_DAILY_RUN_LIMIT ?? 5)));
+  const limit = HOSTED_DAILY_RUN_LIMIT;
   const client = new Client({ connectionString });
   await client.connect();
   try {

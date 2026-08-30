@@ -2,7 +2,7 @@
 
 Agent Evidence Studio is an administrator-hosted, browser-based evidence workspace. One Vercel deployment serves every member; users do not install an agent, keep a PC online, or run a localhost service.
 
-- Live application: https://agent-evidence-studio.vercel.app
+- Live application: https://agentevidencestudio.rakibhq.xyz
 - Source repository: https://github.com/0xmdrakib/AgentEvidenceStudio
 
 It combines three modules:

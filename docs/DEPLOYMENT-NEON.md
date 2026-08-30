@@ -21,9 +21,6 @@ Create a new project from this repository and configure:
 - `NEON_AUTH_ISSUER`
 - `DATABASE_URL`
 - `OPENAI_API_KEY`
-- `OPENAI_MODEL`
-- `OPENAI_REASONING_EFFORT`
-- `OPENAI_DAILY_RUN_LIMIT`
 
 Only the three `NEXT_PUBLIC_*` values may be exposed to browser bundles. All other values are server secrets.
 
