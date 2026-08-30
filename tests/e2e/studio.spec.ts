@@ -129,9 +129,9 @@ test('hosted member workflow covers Jury, replay, encryption, merge, and bounded
   await expect(page.getByText('Canonical head is clear')).toBeVisible();
 
   await page.getByRole('link', { name: 'Settings' }).first().click();
-  await expect(page.getByText('No localhost or PC availability dependency')).toBeVisible();
-  await page.getByLabel('Owned room').fill('d-p-e2e-owned-room'); await page.getByLabel('Controller DID').fill('did:key:z6MkE2EAcceptanceController');
-  await page.getByText('I approve only this exact scope. Any field change invalidates it.').click(); await page.getByRole('button', { name: 'Create bounded approval' }).click();
-  await expect(page.getByText(/Exact scope approved until/)).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workspace settings' })).toBeVisible();
+  await expect(page.getByText('10 MB member plan')).toBeVisible();
+  await expect(page.getByText('Hosted Research Jury provider')).toHaveCount(0);
+  await expect(page.getByText('Technocore bounded approval')).toHaveCount(0);
   await rm(exportDirectory, { recursive: true, force: true });
 });
