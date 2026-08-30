@@ -1,60 +1,72 @@
 # Agent Evidence Studio
 
-Agent Evidence Studio is an administrator-hosted, browser-based evidence workspace. One Vercel deployment serves every member; users do not install an agent, keep a PC online, or run a localhost service.
+Agent Evidence Studio is a browser-based workspace for recording agent activity, resolving shared-memory conflicts, and producing source-bound multi-agent research.
 
-- Live application: https://agentevidencestudio.rakibhq.xyz
-- Source repository: https://github.com/0xmdrakib/AgentEvidenceStudio
+**Live app:** https://agentevidencestudio.rakibhq.xyz
 
-It combines three modules:
+---
 
-- **Flight Recorder** — immutable causal evidence timelines and evidence-only replay.
-- **MemoryMerge** — typed three-way JSON merge with human conflict resolution.
-- **Research Jury** — authenticated Researcher, Challenger, and Adjudicator passes with strict source-bound output.
+## Overview
+
+Agent Evidence Studio combines three connected workflows:
+
+- **Flight Recorder:** Captures causal events, role outputs, sources, handoffs, approvals, delivery states, and usage evidence in a replayable timeline.
+- **MemoryMerge:** Performs typed three-way JSON merges and pauses unsafe or competing changes for a human decision.
+- **Research Jury:** Runs Researcher, Challenger, and Adjudicator roles to separate supported, disputed, and unresolved claims.
+
+One administrator-hosted deployment serves every member. Users work entirely in the browser without installing a runner, hosting a local service, keeping a PC online, or providing infrastructure credentials.
+
+## Features
+
+- Causal run timelines with event details, actor filters, delivery states, and evidence-only replay
+- Detection for orphan events, missing acknowledgements, cycles, conflicting results, transport gaps, and unknown writes
+- Typed JSON snapshots with parent digests, branch heads, deterministic merge rules, and human conflict resolution
+- Source-linked claims, counterevidence, bounded excerpts, verdicts, and unresolved research questions
+- AES-256-GCM encrypted `.aesrun` export, import, and append-only private cloud history
+- Redacted `aesreport/v1` public reports with explicit publication controls
+- Neon authentication and owner-scoped Postgres access
+- Responsive desktop, tablet, and mobile interface with keyboard and reduced-motion support
+
+## Core modules
+
+### Flight Recorder
+
+- Stores immutable evidence events with actor, parent, timestamp, digest, delivery state, and redacted payload metadata.
+- Shows the causal timeline and graph without exposing hidden chain-of-thought.
+- Replays stored evidence step by step without executing an agent, tool, or network action again.
+
+### MemoryMerge
+
+- Automatically merges identical changes and disjoint object updates.
+- Flags competing scalar or array edits, delete-versus-change cases, credentials, executable code, instructions, and financial values.
+- Prevents a new canonical head until a person selects the base, left, right, or a validated custom value.
+
+### Research Jury
+
+- The **Researcher** creates claims that are bound to source records.
+- The **Challenger** searches for contradictions, stale information, and missing evidence.
+- The **Adjudicator** assigns supported, disputed, or unresolved verdicts; agent agreement alone is never treated as proof.
 
 ## Hosted architecture
 
-- Vercel serves the web application and protected Node.js execution functions.
-- Neon Auth identifies members and Neon Postgres enforces owner-scoped metadata access.
-- Private `.aesrun` payloads are AES-256-GCM encrypted in the member browser before upload to append-only, owner-scoped Neon rows.
-- The administrator configures `OPENAI_API_KEY`, `DATABASE_URL`, and Neon Auth verification only in Vercel server environment values.
-- Members never provide an executable, API key, database credential, or localhost endpoint.
+- Vercel serves the browser application and protected server functions.
+- Neon Auth identifies members and Neon Postgres enforces owner-scoped access.
+- Sensitive run bundles are encrypted in the browser before private cloud storage.
+- Provider and database credentials remain server-side; members never supply executables, API keys, database passwords, or localhost endpoints.
+- Technocore interoperability publishes bounded signed summaries and digests rather than complete private run state.
 
-Research Jury uses the OpenAI Responses API with hosted web search, strict JSON Schema output, sequential roles, at most one repair attempt per role, bounded tool calls, per-user daily limits, `store: false`, and a hashed safety identifier.
+## Tech stack
 
-## Administrator setup
+- React 19
+- TypeScript
+- Vinext and Vite
+- Tailwind CSS
+- Vercel
+- Neon Auth and Postgres
+- Vitest and Playwright
 
-1. Create a new dedicated Neon project for Agent Evidence Studio.
-2. Apply the ordered migrations in `neon/migrations/`.
-3. Configure Neon Auth and the Data API.
-4. Add the values documented in `.env.example` to one new Vercel project.
-5. Deploy and verify sign-in, one hosted Jury run, encrypted export/sync, import, replay, merge resolution, and redacted report preview.
-
-Do not reuse credentials or databases from unrelated projects.
-
-## Development and validation
-
-Requirements: Node.js 24+ and npm 11+.
-
-```bash
-npm install
-npm run check
-npm run test:e2e
-```
-
-`npm run dev` is only a temporary developer preview. Production members use the deployed HTTPS application and never depend on the developer machine.
-
-`npm run test:technocore:live` targets a disposable, version-pinned local Technocore container and never writes to the public service.
-
-## Privacy and recovery
-
-- No chain-of-thought is requested or stored.
-- Provider evidence contains role output, bounded source metadata, usage, status, and digests only.
-- Public reports require a redaction preview and explicit publish action.
-- GitHub, X, room ownership transfer, public Technocore rooms, and notes are outside run approval.
-- Every encrypted export produces a recovery kit that must be stored offline.
-
-See [Architecture](docs/ARCHITECTURE.md), [Recovery](docs/RECOVERY.md), [Providers](docs/PROVIDERS.md), [Evidence formats](docs/EVIDENCE_FORMATS.md), and [Neon deployment](docs/DEPLOYMENT-NEON.md).
+---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
+This project is licensed under the [MIT License](./LICENSE).
