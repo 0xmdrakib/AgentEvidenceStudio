@@ -43,6 +43,34 @@ test('mobile navigation has a 44px touch target and opens on-screen', async ({ p
   await expect.poll(async () => Math.round((await page.locator('aside').boundingBox())?.x ?? -999)).toBe(0);
 });
 
+test('primary routes fit the mobile viewport and keep the footer centered', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'mobile viewport only');
+  await page.route('**/api/runner', (route) => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ready', mode: 'hosted', configured: true, model: 'gpt-5.6-sol' }) }));
+
+  for (const route of ['/', '/recorder', '/memory', '/jury/new', '/reports', '/settings']) {
+    await page.goto(route);
+    await ready(page);
+
+    const viewportFits = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
+    expect(viewportFits, `${route} should not overflow horizontally`).toBe(true);
+
+    const footer = page.getByText('© 2026 Md. Rakib • made with love and passion.', { exact: true });
+    await footer.scrollIntoViewIfNeeded();
+    await expect(footer).toBeVisible();
+    await expect(footer).toHaveCSS('text-align', 'center');
+
+    const footerBox = await footer.boundingBox();
+    expect(footerBox, `${route} footer should have a layout box`).not.toBeNull();
+    expect(Math.abs((footerBox!.x + footerBox!.width / 2) - page.viewportSize()!.width / 2), `${route} footer should be visually centered`).toBeLessThan(2);
+  }
+});
+
+test('auth page fits the mobile viewport', async ({ page, isMobile }) => {
+  test.skip(!isMobile, 'mobile viewport only');
+  await page.goto('/auth');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+});
+
 test('hosted member workflow covers Jury, replay, encryption, merge, and bounded approval', async ({ page, isMobile }) => {
   test.skip(isMobile, 'validated once on the desktop product surface');
   const runId = `run_${'c'.repeat(32)}`;

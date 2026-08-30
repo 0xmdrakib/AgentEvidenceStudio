@@ -22,7 +22,13 @@ export function AppShell({ children }: { children: ReactNode }) {
       <div className="mt-auto"><Link href="/jury/new" className="flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-[var(--coral)] px-4 text-sm font-extrabold text-[var(--ink)] shadow-[0_8px_0_#d84a3c] transition hover:-translate-y-0.5"><Plus size={18} />New run</Link>
       </div>
     </aside>
-    <main className="min-w-0 px-4 py-6 sm:px-7 lg:px-10 lg:py-9 xl:px-14">{error && <div role="alert" className="mb-5 flex items-start justify-between gap-4 rounded-2xl border border-[#d89287] bg-[#fff0ed] p-4 text-sm"><span>{error}</span><button className="font-bold" onClick={clearError}>Dismiss</button></div>}{children}</main>
+    <main className="flex min-h-[calc(100vh-4rem)] min-w-0 flex-col px-4 py-6 sm:px-7 lg:min-h-screen lg:px-10 lg:py-9 xl:px-14">
+      {error && <div role="alert" className="mb-5 flex items-start justify-between gap-4 rounded-2xl border border-[#d89287] bg-[#fff0ed] p-4 text-sm"><span>{error}</span><button className="font-bold" onClick={clearError}>Dismiss</button></div>}
+      <div className="flex-1">{children}</div>
+      <footer className="pt-10 text-center text-xs font-semibold tracking-wide text-[var(--muted-ink)] sm:pt-12">
+        © 2026 Md. Rakib&nbsp;•&nbsp;made with love and passion.
+      </footer>
+    </main>
   </div>;
 }
 function Brand() { return <Link href="/" className="inline-flex min-h-11 items-center" aria-label="Agent Evidence Studio home"><Image src="/brand/agent-evidence-logo.svg" alt="" aria-hidden="true" width={202} height={40} unoptimized className="h-10 w-auto max-w-[202px]" /></Link>; }
