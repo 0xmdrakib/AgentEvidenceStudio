@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./public/brand/agent-evidence-logo.svg" alt="Agent Evidence Studio" width="520" />
-</p>
-
 # Agent Evidence Studio
 
 Agent Evidence Studio is a browser-based workspace for recording agent activity, resolving shared-memory conflicts, and producing source-bound multi-agent research.
