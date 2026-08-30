@@ -55,7 +55,6 @@ One administrator-hosted deployment serves every member. Users work entirely in 
 - Every member receives the same administrator-controlled 10 MB plan; database triggers prevent clients from bypassing storage and activity caps.
 - Sensitive run bundles are encrypted in the browser before private cloud storage.
 - Provider and database credentials remain server-side; members never supply executables, API keys, database passwords, or localhost endpoints.
-- Technocore interoperability publishes bounded signed summaries and digests rather than complete private run state.
 
 ## Tech stack
 

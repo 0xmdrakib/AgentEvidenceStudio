@@ -73,11 +73,11 @@ test('auth page fits the mobile viewport', async ({ page, isMobile }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
 });
 
-test('hosted member workflow covers Jury, replay, encryption, merge, and bounded approval', async ({ page, isMobile }) => {
+test('hosted member workflow covers Jury, replay, encryption, and merge', async ({ page, isMobile }) => {
   test.skip(isMobile, 'validated once on the desktop product surface');
   const runId = `run_${'c'.repeat(32)}`;
   const timestamp = '2026-08-29T12:00:00.000Z';
-  const source = { id: 'source_1', url: 'https://github.com/flop-labs/technocore-chat', title: 'technocore-chat', publisher: 'FLOP Labs', publishedAt: timestamp, retrievedAt: timestamp, contentDigest: 'a'.repeat(64), excerpt: 'The documented protocol supports signed room messages.' };
+  const source = { id: 'source_1', url: 'https://example.com/evidence', title: 'Protocol evidence', publisher: 'Example Publisher', publishedAt: timestamp, retrievedAt: timestamp, contentDigest: 'a'.repeat(64), excerpt: 'The documented protocol supports signed messages.' };
   const claim = { id: 'claim_1', text: 'The protocol supports signed messages.', sourceIds: ['source_1'] };
   const eventKinds = ['run.started', 'role.started', 'role.completed', 'role.started', 'role.completed', 'role.started', 'role.completed', 'run.completed'];
   const events = eventKinds.map((kind, index) => ({ runId, eventId: `evt_${index + 1}`, kind, actor: index === 0 || index === 7 ? 'controller' : index < 3 ? 'researcher' : index < 5 ? 'challenger' : 'adjudicator', parentIds: index ? [`evt_${index}`] : [], timestamp, digest: String(index + 1).padStart(64, '0'), deliveryState: 'acknowledged', payload: { value: { step: index + 1 }, redactions: [] } }));
@@ -132,6 +132,5 @@ test('hosted member workflow covers Jury, replay, encryption, merge, and bounded
   await expect(page.getByRole('heading', { name: 'Workspace settings' })).toBeVisible();
   await expect(page.getByText('10 MB member plan')).toBeVisible();
   await expect(page.getByText('Hosted Research Jury provider')).toHaveCount(0);
-  await expect(page.getByText('Technocore bounded approval')).toHaveCount(0);
   await rm(exportDirectory, { recursive: true, force: true });
 });

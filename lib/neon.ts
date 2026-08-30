@@ -88,6 +88,7 @@ type Database = {
 export const DEFAULT_ACCOUNT_LIMITS = {
   storageBytes: 10 * 1024 * 1024,
   bundleBytes: 512 * 1024,
+  reportBytes: 256 * 1024,
   versions: 100,
   reports: 20,
   dailyCloudWrites: 50,
@@ -362,7 +363,7 @@ export async function publishPublicReport(
   if (!neon) throw new Error('Neon is not configured.');
   const { userId } = await getNeonSession();
   const bytes = new TextEncoder().encode(JSON.stringify(report));
-  if (bytes.byteLength > 256 * 1024)
+  if (bytes.byteLength > DEFAULT_ACCOUNT_LIMITS.reportBytes)
     throw new Error('This report is larger than the 256 KB publication limit.');
   const digest = await crypto.subtle
     .digest('SHA-256', bytes)

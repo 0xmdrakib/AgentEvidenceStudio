@@ -73,6 +73,7 @@ describe('hosted request boundary', () => {
     expect(DEFAULT_ACCOUNT_LIMITS).toEqual({
       storageBytes: 10_485_760,
       bundleBytes: 524_288,
+      reportBytes: 262_144,
       versions: 100,
       reports: 20,
       dailyCloudWrites: 50,

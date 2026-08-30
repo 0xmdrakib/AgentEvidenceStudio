@@ -17,7 +17,3 @@ The browser owns the unlocked working set, typed MemoryMerge snapshots, conflict
 ## Neon data
 
 Browser-facing tables use per-owner RLS. `execution_usage` is server-only and has no anonymous or authenticated Data API grants. Encrypted bundle versions are append-only Postgres rows with no update or delete grants. Published reports are separately sanitized and revocable.
-
-## Technocore
-
-Technocore is an optional signed-summary transport, never the source of truth. Real protocol compatibility is tested against a disposable, pinned container; no acceptance test writes to the public service.

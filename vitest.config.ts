@@ -9,7 +9,7 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html'],
-      include: ['packages/*/src/**/*.ts', 'apps/runner/src/store.ts'],
+      include: ['packages/*/src/**/*.ts'],
       exclude: ['**/index.ts'],
       thresholds: { lines: 70, functions: 70, branches: 65, statements: 70 },
     },

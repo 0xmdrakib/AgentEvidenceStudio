@@ -5,7 +5,12 @@ import { useEffect, useState } from 'react';
 import { HardDrive, LogIn, LogOut, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-heading';
-import { getAccountUsage, getCurrentNeonUser, getNeon } from '@/lib/neon';
+import {
+  DEFAULT_ACCOUNT_LIMITS,
+  getAccountUsage,
+  getCurrentNeonUser,
+  getNeon,
+} from '@/lib/neon';
 
 export default function SettingsPage() {
   return (
@@ -130,28 +135,51 @@ function AccountSection() {
             <span>{formatBytes(used)} used</span>
             <span>{formatBytes(limit)} total</span>
           </div>
-          {user ? (
-            <div className="mt-5 grid grid-cols-2 gap-3">
-              <QuotaStat
-                label="Versions"
-                value={`${usage?.bundle_versions ?? 0} / ${usage?.version_limit ?? 100}`}
-              />
-              <QuotaStat
-                label="Reports"
-                value={`${usage?.published_reports ?? 0} / ${usage?.report_limit ?? 20}`}
-              />
-              <QuotaStat
-                label="Cloud writes today"
-                value={`${usage?.cloud_writes_today ?? 0} / ${usage?.daily_cloud_write_limit ?? 50}`}
-              />
-              <QuotaStat
-                label="Hosted runs today"
-                value={`${usage?.hosted_runs_today ?? 0} / ${usage?.daily_hosted_run_limit ?? 5}`}
-              />
-            </div>
-          ) : (
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <QuotaStat
+              label="Encrypted versions"
+              value={
+                user
+                  ? `${usage?.bundle_versions ?? 0} / ${usage?.version_limit ?? DEFAULT_ACCOUNT_LIMITS.versions}`
+                  : `${DEFAULT_ACCOUNT_LIMITS.versions} max`
+              }
+            />
+            <QuotaStat
+              label="Max version size"
+              value={formatBytes(DEFAULT_ACCOUNT_LIMITS.bundleBytes)}
+            />
+            <QuotaStat
+              label="Published reports"
+              value={
+                user
+                  ? `${usage?.published_reports ?? 0} / ${usage?.report_limit ?? DEFAULT_ACCOUNT_LIMITS.reports}`
+                  : `${DEFAULT_ACCOUNT_LIMITS.reports} max`
+              }
+            />
+            <QuotaStat
+              label="Max report size"
+              value={formatBytes(DEFAULT_ACCOUNT_LIMITS.reportBytes)}
+            />
+            <QuotaStat
+              label="Cloud writes"
+              value={
+                user
+                  ? `${usage?.cloud_writes_today ?? 0} / ${usage?.daily_cloud_write_limit ?? DEFAULT_ACCOUNT_LIMITS.dailyCloudWrites} today`
+                  : `${DEFAULT_ACCOUNT_LIMITS.dailyCloudWrites} / day`
+              }
+            />
+            <QuotaStat
+              label="Hosted runs"
+              value={
+                user
+                  ? `${usage?.hosted_runs_today ?? 0} / ${usage?.daily_hosted_run_limit ?? DEFAULT_ACCOUNT_LIMITS.dailyHostedRuns} today`
+                  : `${DEFAULT_ACCOUNT_LIMITS.dailyHostedRuns} / day`
+              }
+            />
+          </div>
+          {!user && (
             <p className="mt-5 rounded-2xl border bg-white p-3 text-xs leading-5 text-[var(--muted-ink)]">
-              Login to view account-specific usage.
+              Login to replace plan limits with your live account usage.
             </p>
           )}
         </div>

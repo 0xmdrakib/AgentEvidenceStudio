@@ -80,10 +80,6 @@ export class RunnerClient {
       : [];
     return { providers };
   }
-  async saveProvider(_profile: ProviderProfile): Promise<never> {
-    throw new Error('Providers are managed by the deployment administrator.');
-  }
-
   async runJury(question: string, providerId: string) {
     if (providerId !== 'provider_hosted_responses')
       throw new Error('Select the hosted Research Jury provider.');
@@ -205,27 +201,6 @@ export class RunnerClient {
     );
     this.conflicts = this.conflicts.filter((item) => item.id !== id);
     return result;
-  }
-  async createApproval(scope: any) {
-    if (
-      !scope.roomId ||
-      !scope.controllerDid ||
-      scope.maximumWrites < 1 ||
-      scope.maximumWrites > 8
-    )
-      throw new Error('A valid bounded scope is required.');
-    const approval = {
-      ...scope,
-      id: createId('approval'),
-      writesUsed: 0,
-      scopeDigest: await sha256({
-        ...scope,
-        eventKinds: [...scope.eventKinds].sort((left: string, right: string) =>
-          left.localeCompare(right),
-        ),
-      }),
-    };
-    return { approval };
   }
   async createBundle(
     runId: string,
