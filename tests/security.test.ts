@@ -16,12 +16,6 @@ const vercelConfig = JSON.parse(
   headers: Array<{
     headers: Array<{ key: string; value: string }>;
   }>;
-  redirects?: Array<{
-    source: string;
-    destination: string;
-    permanent: boolean;
-    has?: Array<{ type: string; value?: string }>;
-  }>;
 };
 
 afterEach(() => {
@@ -136,18 +130,4 @@ describe('hosted request boundary', () => {
     expect(csp).not.toContain('https://*.googleusercontent.com');
   });
 
-  it('redirects the retired domain to the canonical domain', () => {
-    const redirect = vercelConfig.redirects?.find((entry) =>
-      entry.has?.some(
-        (condition) =>
-          condition.type === 'host' &&
-          condition.value === 'agentevidencestudio.rakibhq.xyz',
-      ),
-    );
-    expect(redirect).toMatchObject({
-      source: '/:path*',
-      destination: 'https://agentevidence.rakibhq.xyz/:path*',
-      permanent: true,
-    });
-  });
 });

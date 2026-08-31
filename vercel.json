@@ -13,19 +13,6 @@
       "maxDuration": 300
     }
   },
-  "redirects": [
-    {
-      "source": "/:path*",
-      "has": [
-        {
-          "type": "host",
-          "value": "agentevidencestudio.rakibhq.xyz"
-        }
-      ],
-      "destination": "https://agentevidence.rakibhq.xyz/:path*",
-      "permanent": true
-    }
-  ],
   "rewrites": [
     {
       "source": "/((?!_next/|og.png|favicon.svg|api/).*)",
