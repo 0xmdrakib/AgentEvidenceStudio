@@ -223,6 +223,48 @@ export async function signInWithGoogle(returnTo = '/'): Promise<void> {
   if (result?.error) throw result.error;
 }
 
+const AUTH_SYNC_STORAGE_KEY = 'agent-evidence-auth-sync-v1';
+const AUTH_SYNC_EVENT = 'agent-evidence-auth-sync';
+
+function notifySignedOut(): void {
+  if (typeof window === 'undefined') return;
+  const detail = { type: 'signed-out', at: Date.now() } as const;
+  try {
+    window.localStorage.setItem(AUTH_SYNC_STORAGE_KEY, JSON.stringify(detail));
+  } catch {
+    // The in-page event still keeps this tab correct when storage is blocked.
+  }
+  window.dispatchEvent(new CustomEvent(AUTH_SYNC_EVENT, { detail }));
+}
+
+export function subscribeToNeonSignOut(onSignedOut: () => void): () => void {
+  if (typeof window === 'undefined') return () => undefined;
+  const onLocalEvent = () => onSignedOut();
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== AUTH_SYNC_STORAGE_KEY || !event.newValue) return;
+    try {
+      const value = JSON.parse(event.newValue) as { type?: string };
+      if (value.type === 'signed-out') onSignedOut();
+    } catch {
+      // Ignore unrelated or malformed storage values.
+    }
+  };
+  window.addEventListener(AUTH_SYNC_EVENT, onLocalEvent);
+  window.addEventListener('storage', onStorage);
+  return () => {
+    window.removeEventListener(AUTH_SYNC_EVENT, onLocalEvent);
+    window.removeEventListener('storage', onStorage);
+  };
+}
+
+export async function signOutFromNeon(): Promise<void> {
+  const neon = getNeon();
+  if (!neon) throw new Error('Google sign-in is not configured yet.');
+  const result = (await neon.auth.signOut()) as { error?: unknown } | null;
+  if (result?.error) throw result.error;
+  notifySignedOut();
+}
+
 export async function getNeonSession(): Promise<{
   userId: string;
   accessToken: string;

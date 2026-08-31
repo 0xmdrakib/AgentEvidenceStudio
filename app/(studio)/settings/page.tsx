@@ -10,6 +10,8 @@ import {
   getAccountUsage,
   getCurrentNeonUser,
   getNeon,
+  signOutFromNeon,
+  subscribeToNeonSignOut,
 } from '@/lib/neon';
 
 export default function SettingsPage() {
@@ -33,6 +35,8 @@ function AccountSection() {
     ReturnType<typeof getAccountUsage>
   > | null>(null);
   const [loading, setLoading] = useState(configured);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
 
   useEffect(() => {
     if (!configured) return;
@@ -45,6 +49,16 @@ function AccountSection() {
       .finally(() => setLoading(false));
   }, [configured]);
 
+  useEffect(
+    () =>
+      subscribeToNeonSignOut(() => {
+        setUser(null);
+        setUsage(null);
+        setLoading(false);
+      }),
+    [],
+  );
+
   const used = usage?.storage_used_bytes ?? 0;
   const limit = usage?.storage_limit_bytes ?? 10 * 1024 * 1024;
   const percentage = Math.min(
@@ -52,8 +66,21 @@ function AccountSection() {
     Math.round((used / Math.max(limit, 1)) * 100),
   );
   const signOut = async () => {
-    await getNeon()?.auth.signOut();
-    window.location.assign('/');
+    setSigningOut(true);
+    setSignOutError('');
+    try {
+      await signOutFromNeon();
+      setUser(null);
+      setUsage(null);
+      window.location.replace('/');
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error
+          ? error.message
+          : 'Sign out failed. Please try again.',
+      );
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -95,10 +122,17 @@ function AccountSection() {
               variant="outline"
               className="mt-5 min-h-11 rounded-xl bg-white"
               onClick={signOut}
+              disabled={signingOut}
+              aria-busy={signingOut}
             >
               <LogOut />
-              Sign out
+              {signingOut ? 'Signing out…' : 'Sign out'}
             </Button>
+          )}
+          {signOutError && (
+            <output className="mt-3 block rounded-xl bg-[#fff0ed] p-3 text-sm text-[#8d2e27]">
+              {signOutError}
+            </output>
           )}
           {configured && !loading && !user && (
             <Button

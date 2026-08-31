@@ -15,6 +15,8 @@ import {
   getCurrentNeonUser,
   getGoogleSignInHref,
   getNeon,
+  signOutFromNeon,
+  subscribeToNeonSignOut,
 } from '@/lib/neon';
 
 type AccountUser = Awaited<ReturnType<typeof getCurrentNeonUser>>;
@@ -26,6 +28,8 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const [checking, setChecking] = useState(true);
   const [open, setOpen] = useState(false);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutError, setSignOutError] = useState('');
 
   useEffect(() => {
     let active = true;
@@ -44,8 +48,14 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
         }
       },
     ) as any;
+    const stopSignOutSync = subscribeToNeonSignOut(() => {
+      setUser(null);
+      setOpen(false);
+      setChecking(false);
+    });
     return () => {
       active = false;
+      stopSignOutSync();
       listener?.data?.subscription?.unsubscribe?.();
       listener?.subscription?.unsubscribe?.();
       listener?.unsubscribe?.();
@@ -95,8 +105,21 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
   const label = user.name ?? user.email ?? 'Account';
   const initial = label.trim().charAt(0).toUpperCase() || 'A';
   const signOut = async () => {
-    await getNeon()?.auth.signOut();
-    window.location.assign('/');
+    setSigningOut(true);
+    setSignOutError('');
+    try {
+      await signOutFromNeon();
+      setUser(null);
+      setOpen(false);
+      window.location.replace('/');
+    } catch (error) {
+      setSignOutError(
+        error instanceof Error
+          ? error.message
+          : 'Sign out failed. Please try again.',
+      );
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -155,10 +178,17 @@ export function AccountMenu({ compact = false }: { compact?: boolean }) {
             role="menuitem"
             className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-sm font-bold text-[#9b352c] hover:bg-[#fff0ed]"
             onClick={signOut}
+            disabled={signingOut}
+            aria-busy={signingOut}
           >
             <LogOut size={17} />
-            Sign out
+            {signingOut ? 'Signing out…' : 'Sign out'}
           </button>
+          {signOutError && (
+            <output className="mx-2 mb-1 block rounded-xl bg-[#fff0ed] p-2 text-xs text-[#8d2e27]">
+              {signOutError}
+            </output>
+          )}
         </div>
       )}
     </div>

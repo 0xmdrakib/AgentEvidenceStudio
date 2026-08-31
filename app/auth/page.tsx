@@ -11,7 +11,13 @@ import {
   LockKeyhole,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getCurrentNeonUser, getNeon, signInWithGoogle } from '@/lib/neon';
+import {
+  getCurrentNeonUser,
+  getNeon,
+  signInWithGoogle,
+  signOutFromNeon,
+  subscribeToNeonSignOut,
+} from '@/lib/neon';
 
 function GoogleMark() {
   return (
@@ -58,6 +64,11 @@ export default function AuthPage() {
       .finally(() => setChecking(false));
   }, []);
 
+  useEffect(
+    () => subscribeToNeonSignOut(() => setUser(null)),
+    [],
+  );
+
   const signIn = async () => {
     setBusy(true);
     setMessage('');
@@ -72,11 +83,18 @@ export default function AuthPage() {
   };
 
   const signOut = async () => {
-    if (!neon) return;
     setBusy(true);
-    await neon.auth.signOut();
-    setUser(null);
-    setBusy(false);
+    setMessage('');
+    try {
+      await signOutFromNeon();
+      setUser(null);
+      setBusy(false);
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : 'Sign out failed.',
+      );
+      setBusy(false);
+    }
   };
 
   return (
@@ -156,7 +174,7 @@ export default function AuthPage() {
                   disabled={busy}
                   onClick={signOut}
                 >
-                  Sign out
+                  {busy ? 'Signing out…' : 'Sign out'}
                 </Button>
               </div>
             </div>

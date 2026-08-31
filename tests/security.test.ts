@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { assertJsonRequest, assertTrustedOrigin } from '../lib/server-auth.ts';
 import {
   DEFAULT_ACCOUNT_LIMITS,
@@ -7,6 +7,7 @@ import {
   isNeonSignInRequiredError,
   NeonSignInRequiredError,
   normalizeNeonUser,
+  subscribeToNeonSignOut,
 } from '../lib/neon.ts';
 
 const originalSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
@@ -20,6 +21,7 @@ const vercelConfig = JSON.parse(
 
 afterEach(() => {
   process.env.NEXT_PUBLIC_SITE_URL = originalSiteUrl;
+  vi.unstubAllGlobals();
 });
 
 describe('hosted request boundary', () => {
@@ -130,4 +132,24 @@ describe('hosted request boundary', () => {
     expect(csp).not.toContain('https://*.googleusercontent.com');
   });
 
+  it('synchronizes sign-out state across browser tabs', () => {
+    const listeners = new Map<string, (event: any) => void>();
+    const removeEventListener = vi.fn();
+    vi.stubGlobal('window', {
+      addEventListener: (name: string, listener: (event: any) => void) =>
+        listeners.set(name, listener),
+      removeEventListener,
+    });
+    const onSignedOut = vi.fn();
+    const unsubscribe = subscribeToNeonSignOut(onSignedOut);
+
+    listeners.get('storage')?.({
+      key: 'agent-evidence-auth-sync-v1',
+      newValue: JSON.stringify({ type: 'signed-out', at: Date.now() }),
+    });
+
+    expect(onSignedOut).toHaveBeenCalledOnce();
+    unsubscribe();
+    expect(removeEventListener).toHaveBeenCalledTimes(2);
+  });
 });
