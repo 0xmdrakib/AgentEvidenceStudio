@@ -2,7 +2,7 @@
 
 Agent Evidence Studio is a browser-based workspace for recording agent activity, resolving shared-memory conflicts, and producing source-bound multi-agent research.
 
-**Live app:** https://agentevidencestudio.rakibhq.xyz
+**Live app:** https://agentevidence.rakibhq.xyz
 
 ---
 

@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }, { url: '/icon-192.png', sizes: '192x192', type: 'image/png' }],
     apple: [{ url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' }],
   },
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://agentevidencestudio.rakibhq.xyz'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://agentevidence.rakibhq.xyz'),
   openGraph: {
     type: 'website', title: 'Agent Evidence Studio',
     description: 'See what your agents did. Merge what they remember. Verify what they claim.',

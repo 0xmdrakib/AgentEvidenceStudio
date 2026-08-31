@@ -16,6 +16,12 @@ const vercelConfig = JSON.parse(
   headers: Array<{
     headers: Array<{ key: string; value: string }>;
   }>;
+  redirects?: Array<{
+    source: string;
+    destination: string;
+    permanent: boolean;
+    has?: Array<{ type: string; value?: string }>;
+  }>;
 };
 
 afterEach(() => {
@@ -25,13 +31,13 @@ afterEach(() => {
 describe('hosted request boundary', () => {
   it('accepts the configured same-origin JSON request', () => {
     process.env.NEXT_PUBLIC_SITE_URL =
-      'https://agentevidencestudio.rakibhq.xyz';
+      'https://agentevidence.rakibhq.xyz';
     const request = new Request(
-      'https://agentevidencestudio.rakibhq.xyz/api/runner',
+      'https://agentevidence.rakibhq.xyz/api/runner',
       {
         method: 'POST',
         headers: {
-          origin: 'https://agentevidencestudio.rakibhq.xyz',
+          origin: 'https://agentevidence.rakibhq.xyz',
           'content-type': 'application/json',
           'sec-fetch-site': 'same-origin',
         },
@@ -43,7 +49,7 @@ describe('hosted request boundary', () => {
 
   it('rejects missing, untrusted, and cross-site origins', () => {
     process.env.NEXT_PUBLIC_SITE_URL =
-      'https://agentevidencestudio.rakibhq.xyz';
+      'https://agentevidence.rakibhq.xyz';
     expect(() =>
       assertTrustedOrigin(
         new Request('https://example.com/api/runner', { method: 'POST' }),
@@ -62,7 +68,7 @@ describe('hosted request boundary', () => {
         new Request('https://example.com/api/runner', {
           method: 'POST',
           headers: {
-            origin: 'https://agentevidencestudio.rakibhq.xyz',
+            origin: 'https://agentevidence.rakibhq.xyz',
             'sec-fetch-site': 'cross-site',
           },
         }),
@@ -128,5 +134,20 @@ describe('hosted request boundary', () => {
       "img-src 'self' data: blob: https://lh3.googleusercontent.com",
     );
     expect(csp).not.toContain('https://*.googleusercontent.com');
+  });
+
+  it('redirects the retired domain to the canonical domain', () => {
+    const redirect = vercelConfig.redirects?.find((entry) =>
+      entry.has?.some(
+        (condition) =>
+          condition.type === 'host' &&
+          condition.value === 'agentevidencestudio.rakibhq.xyz',
+      ),
+    );
+    expect(redirect).toMatchObject({
+      source: '/:path*',
+      destination: 'https://agentevidence.rakibhq.xyz/:path*',
+      permanent: true,
+    });
   });
 });
