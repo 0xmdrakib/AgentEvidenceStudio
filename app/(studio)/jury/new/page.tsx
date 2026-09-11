@@ -30,6 +30,7 @@ export default function NewJuryPage() {
     .map((url) => url.trim())
     .filter(Boolean);
   const provider = providers[0];
+  const webSearch = provider?.capabilities.webSearch === true;
   const submit = async () => {
     if (!provider) return;
     setBusy(true);
@@ -48,7 +49,7 @@ export default function NewJuryPage() {
       <PageHeading
         eyebrow="Module 03 · teal evidence"
         title="Research Jury"
-        description="Bring a question and public sources. Three evidence-review passes examine claims, challenge weak support, and explain what remains unresolved."
+        description="Investigate a focused question. Three evidence-review passes examine claims, challenge weak support, and explain what remains unresolved."
       />
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
         <section className="paper min-w-0 rounded-[26px] p-5 sm:p-7">
@@ -82,7 +83,7 @@ export default function NewJuryPage() {
                 htmlFor="source-links"
                 className="mt-5 block text-sm font-extrabold"
               >
-                Source links
+                {webSearch ? 'Source links (optional)' : 'Source links'}
               </Label>
               <Textarea
                 id="source-links"
@@ -97,8 +98,10 @@ export default function NewJuryPage() {
                 id="source-help"
                 className="mt-2 text-sm leading-6 text-[var(--muted-ink)]"
               >
-                Add 1–3 public HTTPS links, one per line. The jury reviews short
-                excerpts from these pages, so choose specific articles or
+                {webSearch
+                  ? 'Leave empty for one bounded web search, or add 1–3 public HTTPS links to review specific evidence without a search charge. '
+                  : 'Add 1–3 public HTTPS links, one per line. Automatic search is not available with this connection. '}
+                The jury reads relevant excerpts from accessible articles and
                 documentation. PDFs, sign-in pages, and image-only pages are not
                 supported.
               </p>
@@ -116,7 +119,7 @@ export default function NewJuryPage() {
                 disabled={
                   !runnerOnline ||
                   question.trim().length < 10 ||
-                  sourceUrls.length < 1 ||
+                  (!webSearch && sourceUrls.length < 1) ||
                   sourceUrls.length > 3 ||
                   busy
                 }
@@ -142,8 +145,9 @@ export default function NewJuryPage() {
             </h2>
             <p className="mt-2 text-sm leading-6 text-[var(--muted-ink)]">
               Each role reviews the same source excerpts from a different
-              perspective. This is a focused source review, not an exhaustive
-              search of the web.
+              perspective. Search is limited to three candidate pages, not
+              exhaustive web coverage. Unreadable pages are excluded, and gaps
+              in the available evidence remain unresolved.
             </p>
             <div className="mt-4 divide-y divide-[var(--line)] rounded-[18px] border border-[var(--line)] bg-[#fcf9f3]">
               <Role

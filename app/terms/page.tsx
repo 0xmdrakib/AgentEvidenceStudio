@@ -46,10 +46,10 @@ export default function TermsPage() {
             The standard member plan includes 10 MB of stored cloud data, 100
             encrypted versions, 20 published reports, 50 cloud writes per day,
             and 2 research attempts per day, up to 10 per calendar month.
-            Research uses excerpts from supplied public sources. Failed or
-            interrupted attempts count toward the allowance. Resets use UTC;
-            a shared site allowance also applies. Limits may be reduced
-            temporarily to protect service reliability.
+            Research uses excerpts from supplied or search-discovered public
+            sources. Failed or interrupted attempts count toward the allowance.
+            Resets use UTC; a shared site allowance also applies. Limits may be
+            reduced temporarily to protect service reliability.
           </Section>
           <Section title="Your content">
             You remain responsible for the evidence and reports you upload or

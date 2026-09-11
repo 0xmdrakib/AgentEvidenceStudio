@@ -48,10 +48,19 @@ One administrator-hosted deployment serves every member. Users work entirely in 
 - The **Challenger** searches for contradictions, stale information, and missing evidence.
 - The **Adjudicator** assigns supported, disputed, or unresolved verdicts; agent agreement alone is never treated as proof.
 
-Members submit a focused question and 1–3 public HTTPS source links. The server
-reads bounded HTML/text excerpts, computes their digests, and gives the same
-evidence to all three roles. This is a source-review workflow, not an automatic
-web search. PDFs, authenticated pages, and image-only sources are not supported.
+Members submit a focused question. With Vercel AI Gateway configured, leaving
+source links empty starts one bounded Perplexity Search request through the same
+Gateway key. Alternatively, members can supply 1–3 public HTTPS links and skip
+the search charge. Other compatible model providers retain this explicit-link
+mode; an LLM's function-calling support alone does not supply a search engine.
+
+Discovery returns at most three candidate URLs. The server independently reads
+their HTML/text pages, selects relevant excerpts with neighbouring sentences,
+computes page digests, and gives identical evidence to all three roles. Unreadable
+discovered pages are excluded; a run with no readable evidence stops. This is
+bounded research, not exhaustive web coverage. PDFs, authenticated pages, and
+image-only sources are not supported. Search snippets or model-generated text
+are never substituted for downloaded source evidence.
 
 ## AI configuration
 
@@ -69,7 +78,16 @@ use their own base path and model ID. No provider choice or credential is
 accepted from members. The provider must support non-streaming Chat Completions,
 JSON-object output, and enforce `max_tokens`. The app validates every result
 locally and does not retry provider or transport failures. It disables thinking
-on the official DeepSeek endpoint; gateway defaults can differ.
+on the official DeepSeek endpoint and explicitly requests non-reasoning mode for
+DeepSeek models on Vercel Gateway. Other gateways retain their own options.
+
+For model + search with the same three variables, use
+`AI_BASE_URL=https://ai-gateway.vercel.sh/v1` and the Gateway-published model ID
+(currently `deepseek/deepseek-v4.1-flash`), with your Gateway key in `AI_API_KEY`.
+No separate search credential is required. This does not change the model or key
+automatically; the administrator remains in control of all three values.
+See [Gateway search](https://vercel.com/docs/ai-gateway/models-and-providers/web-search)
+and [DeepSeek API tool support](https://api-docs.deepseek.com/guides/responses_api/).
 
 As of September 12, 2026, DeepSeek’s official API routes the retired
 `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` IDs to V4.1 Flash.
@@ -90,9 +108,21 @@ quota storage prevents any provider call. `OPENAI_API_KEY` is no longer used.
 | Simultaneous work | 1 active run/member, 3 across the site |
 | Cooldown | 60 seconds/member; identical requests blocked for 10 minutes |
 | Entire site | 20 attempts/day, 200/calendar month |
-| Each research | 3 roles, at most 1 shared schema repair: 4 calls total |
-| Each model call | 12,288 input bytes, 1,536 maximum output tokens, 50 seconds |
+| Each research | At most 4 model requests total, including discovery |
+| Search mode | 1 Gateway search-bearing request, 3 candidate pages, 1,536 search-context tokens, 512 discovery-output tokens |
+| Researcher / Challenger / Adjudicator | Output ceilings: 1,024 / 1,024 / 1,536 tokens |
+| Explicit-source mode | 3 roles plus at most 1 shared schema repair; repair ceiling 1,536 tokens |
+| Each role call | 12,288 input bytes, 50 seconds; no HTTP retries |
 | Entire research | 240 seconds; quota lease expires after 6 minutes |
+
+Search is configured server-side with a fixed query, result count and context
+limit; members and models cannot choose additional queries or override settings.
+The application never follows a search tool-call loop. Gateway executes its
+server tool internally: a successful result must report exactly one search call;
+missing or excessive search metadata fails closed, without another request.
+Search-mode runs spend their fourth call on discovery, so they do not have a
+fifth call for schema repair. The 20/day and 200/month site caps are still the
+initial safety policy, not DeepSeek service limits or a promised public capacity.
 
 Daily and monthly resets use UTC. Submitted attempts remain charged on errors,
 disconnects, or process crashes. PostgreSQL serializes reservations before any
@@ -103,12 +133,34 @@ current member’s allowance. Existing per-account administrator limits can redu
 the daily allowance further but cannot exceed the AI ceiling.
 
 These bounds cap request and token volume, not arbitrary providers’ invoices.
-At DeepSeek’s documented peak prices ($0.30/M uncached input and $1.20/M output),
-a conservative byte-as-token estimate plus framing reserve is approximately
-$0.023/run, $0.23/member-month, and $4.55/site-month at the maximum allowed
-volume; ordinary short runs can cost less. This excludes hosting, database,
-taxes, and any gateway surcharge. Provider prices may change; use a dedicated
-provider key/account with its own spending ceiling for a monetary hard stop.
+The old $0.23/member-month figure was a pessimistic ceiling estimate, not a
+measured bill. Cost engineering now preserves the three role passes while:
+
+- keeping instructions and evidence in an identical prompt prefix across roles,
+  allowing provider-managed prefix caching;
+- keeping digests, long URLs and retrieval metadata in canonical records rather
+  than retransmitting them to every role;
+- using the same excerpt byte allowance for relevant passages instead of page
+  introductions, without an extra summarization-model request;
+- reducing the three normal role output ceilings from 4,608 to 3,584 tokens
+  (22.2% lower output allowance, **not** a guaranteed 22.2% bill reduction);
+- reserving actual prompt bytes plus framing when usage is missing, recording
+  reported usage when available, and not retrying ambiguous paid requests.
+
+For illustration only, a complete run consuming 6,000 uncached input tokens and
+1,200 output tokens would cost $0.00324 at official DeepSeek's documented peak
+rates ($0.30/M input, $1.20/M output). One Gateway Perplexity Search adds $0.005
+at its documented rate, so those same token totals plus search would be $0.00824
+per run, or $0.0824 for ten runs. This is **not measured production usage or a
+guaranteed ceiling**; Gateway token prices, cache hits, actual outputs and search
+execution change the bill. Search can cost more than inference on a cheap model.
+Hosting, database, taxes and other charges are excluded. A dedicated provider key
+with its own spending ceiling remains necessary for a monetary hard stop.
+
+No cross-account result cache or persistent plaintext-question cache is added.
+Provider-managed caching follows that provider's retention and isolation rules.
+Tests use mocked upstream responses; a real Gateway search acceptance run is
+required after the administrator supplies the three live environment values.
 
 JWT verification, verified Google identity, trusted-origin checks, strict input
 schemas, idempotency, and database quotas protect research. Source fetching pins

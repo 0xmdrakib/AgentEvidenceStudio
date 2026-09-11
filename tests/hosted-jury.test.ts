@@ -81,16 +81,28 @@ describe('bounded provider-independent Research Jury', () => {
     expect(run.juryResult?.sources).toEqual([source]);
     expect(run.juryResult?.verdicts[0].status).toBe('supported');
     expect(requests).toHaveLength(3);
-    for (const request of requests) {
+    for (const [index, request] of requests.entries()) {
       expect(request.url).toBe('https://api.deepseek.com/chat/completions');
       expect(request.body.model).toBe('deepseek-flash');
-      expect(request.body.max_tokens).toBe(AI_LIMITS.outputTokensPerCall);
+      expect(request.body.max_tokens).toBe([1_024, 1_024, 1_536][index]);
       expect(request.body.thinking).toEqual({ type: 'disabled' });
       expect(request.body.tools).toBeUndefined();
       expect(request.body.response_format).toEqual({ type: 'json_object' });
       expect(request.body.user_id).toMatch(/^[a-f0-9]{64}$/);
       expect(request.init?.redirect).toBe('error');
     }
+    expect(requests[0].body.messages.slice(0, 2)).toEqual(
+      requests[1].body.messages.slice(0, 2),
+    );
+    expect(requests[1].body.messages.slice(0, 2)).toEqual(
+      requests[2].body.messages.slice(0, 2),
+    );
+    expect(JSON.stringify(requests[0].body.messages)).not.toContain(
+      source.contentDigest,
+    );
+    expect(JSON.stringify(requests[0].body.messages)).toContain(
+      source.publisher,
+    );
     expect(onUsage).toHaveBeenLastCalledWith({
       calls: 3,
       inputTokens: 300,
@@ -117,6 +129,53 @@ describe('bounded provider-independent Research Jury', () => {
     expect(requests[0].body.user).toMatch(/^[a-f0-9]{64}$/);
   });
 
+  it('includes search in the four-call budget and disables Gateway DeepSeek reasoning explicitly', async () => {
+    const { fetchImpl, requests } = replies(outputs);
+    const onUsage = vi.fn();
+    await runHostedJury({
+      ...baseOptions,
+      config: getAiConfig({
+        AI_API_KEY: 'test',
+        AI_BASE_URL: 'https://ai-gateway.vercel.sh/v1',
+        AI_MODEL: 'deepseek/deepseek-v4.1-flash',
+      }),
+      initialUsage: { calls: 1, inputTokens: 200, outputTokens: 100 },
+      fetchImpl,
+      onUsage,
+    });
+    expect(requests).toHaveLength(3);
+    expect(requests[0].body.reasoning).toEqual({ enabled: false });
+    expect(onUsage).toHaveBeenLastCalledWith({
+      calls: 4,
+      inputTokens: 500,
+      outputTokens: 250,
+    });
+    const failed = replies([outputs[0], outputs[1], {}]);
+    await expect(
+      runHostedJury({
+        ...baseOptions,
+        initialUsage: { calls: 1, inputTokens: 200, outputTokens: 100 },
+        fetchImpl: failed.fetchImpl,
+      }),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(failed.requests).toHaveLength(3);
+  });
+
+  it('extracts later relevant evidence with nearby qualifications without increasing excerpt size', () => {
+    const text = `${'Unrelated introductory material. '.repeat(90)}Flash supports tool calling. However, built-in web search is not supported. ${'Unrelated concluding material. '.repeat(80)}`;
+    const record = sourceFromPage(
+      new URL(source.url),
+      Buffer.from(`<main>${text}</main>`),
+      0,
+      new Date(timestamp),
+      'Does Flash support built-in web search?',
+    );
+    expect(record.excerpt).toContain('built-in web search is not supported');
+    expect(record.excerpt.length).toBeLessThanOrEqual(1_000);
+    expect(Buffer.byteLength(record.excerpt)).toBeLessThanOrEqual(1_600);
+    expect(record.contentDigest).toMatch(/^[a-f0-9]{64}$/);
+  });
+
   it('does not retry network/provider errors or expose their secret-bearing error text', async () => {
     const fetchImpl = vi.fn(async () =>
       Response.json(
@@ -131,6 +190,30 @@ describe('bounded provider-independent Research Jury', () => {
       message: expect.not.stringContaining('secret-test-key'),
     });
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops all subsequent roles if a provider reports exceeding its output allowance', async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json({
+        choices: [
+          {
+            finish_reason: 'stop',
+            message: { content: JSON.stringify(outputs[0]) },
+          },
+        ],
+        usage: { prompt_tokens: 100, completion_tokens: 5_000 },
+      }),
+    ) as typeof fetch;
+    const onUsage = vi.fn();
+    await expect(
+      runHostedJury({ ...baseOptions, fetchImpl, onUsage }),
+    ).rejects.toMatchObject({ status: 502 });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(onUsage).toHaveBeenLastCalledWith({
+      calls: 1,
+      inputTokens: 100,
+      outputTokens: 5_000,
+    });
   });
 
   it('shares exactly one schema repair across the entire run', async () => {

@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   usage: vi.fn(),
   sources: vi.fn(),
   jury: vi.fn(),
+  search: vi.fn(),
 }));
 vi.mock('../lib/server-auth.ts', async (loadOriginal) => ({
   ...(await loadOriginal<typeof import('../lib/server-auth.ts')>()),
@@ -21,6 +22,9 @@ vi.mock('../lib/research-sources.ts', async (loadOriginal) => ({
   collectResearchSources: mocks.sources,
 }));
 vi.mock('../lib/hosted-jury.ts', () => ({ runHostedJury: mocks.jury }));
+vi.mock('../lib/research-search.ts', () => ({
+  discoverResearchSources: mocks.search,
+}));
 import { hostedRunnerHandler } from '../lib/hosted-runner-handler';
 import { AiRequestError } from '../lib/ai-policy';
 
@@ -66,6 +70,7 @@ describe('research API authorization and dispatch', () => {
     expect(mocks.reserve).not.toHaveBeenCalled();
     expect(mocks.sources).not.toHaveBeenCalled();
     expect(mocks.jury).not.toHaveBeenCalled();
+    expect(mocks.search).not.toHaveBeenCalled();
   });
   it('rejects cross-origin requests and request-supplied credentials, URLs, models, or chat messages', async () => {
     expect(
@@ -82,6 +87,8 @@ describe('research API authorization and dispatch', () => {
       'messages',
       'max_tokens',
       'userId',
+      'tools',
+      'searchQueries',
     ]) {
       expect(
         (
@@ -141,6 +148,54 @@ describe('research API authorization and dispatch', () => {
       'verified-owner',
       'failed',
       expect.any(Object),
+    );
+  });
+  it('reserves quota before optional search and passes discovery usage into the same call budget', async () => {
+    vi.stubEnv('AI_BASE_URL', 'https://ai-gateway.vercel.sh/v1');
+    const searchUsage = { calls: 1, inputTokens: 120, outputTokens: 50 };
+    mocks.search.mockImplementation(async ({ onUsage }) => {
+      onUsage(searchUsage);
+      return ['https://example.com/discovered'];
+    });
+    const response = await hostedRunnerHandler.fetch(
+      request({ ...input, sourceUrls: [] }),
+    );
+    expect(response.status).toBe(201);
+    expect(mocks.reserve.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.search.mock.invocationCallOrder[0],
+    );
+    expect(mocks.sources).toHaveBeenCalledWith(
+      ['https://example.com/discovered'],
+      expect.any(AbortSignal),
+      input.question,
+      true,
+    );
+    expect(mocks.jury).toHaveBeenCalledWith(
+      expect.objectContaining({ initialUsage: searchUsage }),
+    );
+    mocks.search.mockClear();
+    mocks.reserve.mockRejectedValue(new AiRequestError('Limit reached.', 429));
+    expect(
+      (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
+        .status,
+    ).toBe(429);
+    expect(mocks.search).not.toHaveBeenCalled();
+  });
+  it('keeps explicit-source mode free of search and rejects unsupported search before reserving quota', async () => {
+    expect(
+      (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
+        .status,
+    ).toBe(422);
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.search).not.toHaveBeenCalled();
+    vi.stubEnv('AI_BASE_URL', 'https://ai-gateway.vercel.sh/v1');
+    expect((await hostedRunnerHandler.fetch(request())).status).toBe(201);
+    expect(mocks.search).not.toHaveBeenCalled();
+    expect(mocks.sources).toHaveBeenCalledWith(
+      input.sourceUrls,
+      expect.any(AbortSignal),
+      input.question,
+      false,
     );
   });
   it('bounds request bytes and rejects unsupported methods', async () => {

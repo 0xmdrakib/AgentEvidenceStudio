@@ -53,13 +53,17 @@ export default function PrivacyPage() {
           <Section title="AI research">
             Starting research sends your question and short excerpts from your
             source links through our server to the administrator-configured AI
-            provider. This processing happens before any optional encrypted
-            cloud save. Do not submit confidential material. We retain a hashed
-            Google account identifier, request fingerprint, time, status, and
-            token counts to enforce research allowances, including after account
-            recreation. These operational records are retained for the current
-            and previous two calendar months and cleaned when new research starts.
-            Provider retention depends on the selected provider’s terms.
+            provider. When automatic search is available and no links are
+            supplied, your question is also sent through Vercel AI Gateway to
+            Perplexity Search to discover public pages. No account email or
+            credentials are sent to source websites. This processing happens
+            before any optional encrypted cloud save. Do not submit confidential
+            material. We retain a hashed Google account identifier, request
+            fingerprint, time, status, and token counts to enforce research
+            allowances, including after account recreation. These operational
+            records are retained for the current and previous two calendar
+            months and cleaned when new research starts. Provider retention
+            depends on the selected provider’s terms.
           </Section>
           <Section title="Service providers">
             Authentication and database services are provided by Neon; Google

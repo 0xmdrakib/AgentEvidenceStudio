@@ -30,6 +30,7 @@ export class RunnerClient {
   private conflicts: StoredConflict[] = [];
   private configured = false;
   private model = '';
+  private webSearch = false;
 
   constructor(public readonly baseUrl = '/api/runner') {}
 
@@ -40,12 +41,14 @@ export class RunnerClient {
       mode: string;
       configured: boolean;
       model: string;
+      webSearch?: boolean;
       error?: string;
     };
     if (!response.ok)
       throw new Error(data.error ?? 'Hosted execution status is unavailable.');
     this.configured = data.configured;
     this.model = data.model;
+    this.webSearch = data.webSearch === true;
     return { ...data, vaultUnlocked: false };
   }
 
@@ -74,6 +77,7 @@ export class RunnerClient {
               structuredOutput: true,
               usage: true,
               cancellation: true,
+              webSearch: this.webSearch,
             },
             limits: { timeoutMs: 300_000, outputBytes: 1_000_000 },
             allowLoopback: false,
@@ -97,7 +101,12 @@ export class RunnerClient {
         authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ action: 'jury.run', question, sourceUrls, requestId: crypto.randomUUID() }),
+      body: JSON.stringify({
+        action: 'jury.run',
+        question,
+        sourceUrls,
+        requestId: crypto.randomUUID(),
+      }),
     });
     const data = (await response.json()) as { run?: RunRecord; error?: string };
     if (response.status === 401) throw new NeonSignInRequiredError();

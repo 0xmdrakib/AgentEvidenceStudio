@@ -83,13 +83,15 @@ test('hosted member workflow covers Jury, replay, encryption, and merge', async 
   const events = eventKinds.map((kind, index) => ({ runId, eventId: `evt_${index + 1}`, kind, actor: index === 0 || index === 7 ? 'controller' : index < 3 ? 'researcher' : index < 5 ? 'challenger' : 'adjudicator', parentIds: index ? [`evt_${index}`] : [], timestamp, digest: String(index + 1).padStart(64, '0'), deliveryState: 'acknowledged', payload: { value: { step: index + 1 }, redactions: [] } }));
   const run = { id: runId, title: 'Hosted evidence acceptance run', module: 'jury', state: 'completed', createdAt: timestamp, updatedAt: timestamp, providerId: 'provider_hosted_responses', events, juryResult: { question: 'Does the protocol support signed messages?', briefEn: 'The source supports the bounded claim.', sources: [source], claims: [claim], counterevidence: [], verdicts: [{ claimId: 'claim_1', status: 'supported', rationale: 'The protocol documentation is direct evidence.', sourceIds: ['source_1'] }], unresolvedQuestions: [] } };
   await page.route('**/api/runner', async (route) => {
-    if (route.request().method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ready', mode: 'hosted', configured: true, model: 'gpt-5.6-sol' }) });
+    if (route.request().method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'ready', mode: 'hosted', configured: true, model: 'deepseek/deepseek-v4.1-flash', webSearch: true }) });
+    expect(route.request().postDataJSON().sourceUrls).toEqual([]);
     return route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ run, usage: { used: 1, limit: 5 } }) });
   });
 
   await page.goto('/jury/new'); await ready(page);
   await page.getByLabel('What should the jury investigate?').fill('Does the protocol support signed messages and what are its limits?');
-  await page.getByLabel('Source links').fill('https://example.com/evidence');
+  await expect(page.getByLabel('Source links (optional)')).toBeVisible();
+  await expect(page.getByText(/Leave empty for one bounded web search/)).toBeVisible();
   await page.getByRole('button', { name: 'Start hosted jury' }).click();
   await expect(page).toHaveURL(new RegExp(`/jury/${runId}`));
   await expect(page.getByText('supported', { exact: true })).toBeVisible();

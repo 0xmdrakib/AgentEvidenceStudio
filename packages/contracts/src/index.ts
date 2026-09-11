@@ -89,6 +89,7 @@ export const ProviderProfileSchema = z.object({
     structuredOutput: z.boolean(),
     usage: z.boolean(),
     cancellation: z.boolean(),
+    webSearch: z.boolean().optional(),
   }),
   limits: z.object({
     timeoutMs: z.number().int().min(1_000).max(600_000),

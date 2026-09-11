@@ -160,6 +160,7 @@ export function sourceFromPage(
   body: Buffer,
   index: number,
   now = new Date(),
+  question = '',
 ): ResearchSource {
   const html = body.toString('utf8');
   const clean = (value: string) =>
@@ -187,7 +188,66 @@ export function sourceFromPage(
       /<(?:article|main)\b[^>]*>([\s\S]*?)<\/(?:article|main)\s*>/i,
     )?.[1] ?? html;
   // Keep evidence compact across all three roles and any one repair.
-  let excerpt = clean(content).slice(0, 1_000);
+  const text = clean(content);
+  // Spend the same context allowance on relevant passages, not navigation or
+  // the opening paragraph. This is deterministic extraction, not AI rewriting.
+  const terms = [
+    ...new Set(question.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? []),
+  ].filter(
+    (term) =>
+      ![
+        'the',
+        'and',
+        'what',
+        'does',
+        'this',
+        'that',
+        'with',
+        'from',
+        'are',
+        'for',
+        'how',
+        'which',
+        'can',
+        'why',
+        'was',
+        'will',
+        'have',
+        'has',
+      ].includes(term),
+  );
+  const segments = [
+    ...new Intl.Segmenter(undefined, { granularity: 'sentence' }).segment(text),
+  ];
+  const passages = segments.map(({ segment, index }) => ({
+    start: index,
+    passage: segment,
+    score: terms.filter((term) => segment.toLowerCase().includes(term)).length,
+  }));
+  const relevant = passages
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || a.start - b.start)
+    .slice(0, 2)
+    .sort((a, b) => a.start - b.start);
+  // Include neighbouring sentences so a selected assertion doesn't lose its
+  // qualification. Keep original order and mark skipped passages explicitly.
+  const selected = new Set<number>();
+  for (const item of relevant) {
+    const index = passages.indexOf(item);
+    for (const position of [index - 1, index, index + 1])
+      if (position >= 0 && position < passages.length) selected.add(position);
+  }
+  const selectedText = [...selected]
+    .sort((a, b) => a - b)
+    .map(
+      (position, index, positions) =>
+        `${index > 0 && position > positions[index - 1] + 1 ? ' […] ' : ''}${passages[position].passage}`,
+    )
+    .join('');
+  let excerpt = (selectedText.length >= 80 ? selectedText : text).slice(
+    0,
+    1_000,
+  );
   while (Buffer.byteLength(excerpt, 'utf8') > 1_600)
     excerpt = excerpt.slice(0, -1);
   if (excerpt.length < 80)
@@ -212,8 +272,12 @@ export function sourceFromPage(
 export async function collectResearchSources(
   urls: string[],
   signal: AbortSignal,
+  question = '',
+  allowPartial = false,
 ): Promise<ResearchSource[]> {
-  return Promise.all(
+  if (!urls.length || urls.length > 3)
+    throw new AiRequestError('Choose one to three public source links.', 422);
+  const results = await Promise.allSettled(
     urls.map(async (value, index) => {
       const boundedSignal = AbortSignal.any([
         signal,
@@ -221,7 +285,7 @@ export async function collectResearchSources(
       ]);
       try {
         const page = await download(validateSourceUrl(value), boundedSignal);
-        return sourceFromPage(page.url, page.body, index);
+        return sourceFromPage(page.url, page.body, index, new Date(), question);
       } catch (error) {
         if (error instanceof AiRequestError) throw error;
         throw new AiRequestError(
@@ -231,4 +295,22 @@ export async function collectResearchSources(
       }
     }),
   );
+  signal.throwIfAborted();
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected' && !allowPartial) throw failed.reason;
+  const sources = results.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
+  );
+  // Different discovery URLs may redirect to the same page: don't count those
+  // as independent evidence. Never fabricate a snippet for an unreadable page.
+  const unique = sources.filter(
+    (source, index) =>
+      sources.findIndex((item) => item.url === source.url) === index,
+  );
+  if (!unique.length)
+    throw new AiRequestError(
+      'No accessible source pages were found. Try specific public HTML or text links.',
+      422,
+    );
+  return unique;
 }

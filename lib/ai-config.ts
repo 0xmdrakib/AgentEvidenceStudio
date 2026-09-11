@@ -7,6 +7,19 @@ export interface AiConfig {
   endpoint: string;
 }
 
+export function supportsWebSearch(config: AiConfig): boolean {
+  // Do not forward Gateway-specific tools or credentials to an arbitrary host.
+  return config.baseUrl === 'https://ai-gateway.vercel.sh/v1';
+}
+
+export function providerOptions(config: AiConfig): Record<string, unknown> {
+  if (new URL(config.baseUrl).hostname === 'api.deepseek.com')
+    return { thinking: { type: 'disabled' } };
+  if (supportsWebSearch(config) && config.model.startsWith('deepseek/'))
+    return { reasoning: { enabled: false } };
+  return {};
+}
+
 export function getAiConfig(
   env: Record<string, string | undefined> = process.env,
 ): AiConfig {
