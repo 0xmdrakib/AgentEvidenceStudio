@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       </Link>
       <article className="paper mt-8 rounded-[28px] p-6 sm:p-10">
         <p className="eyebrow text-[var(--muted-ink)]">
-          Effective August 30, 2026
+          Effective September 12, 2026
         </p>
         <h1 className="display mt-3 text-4xl sm:text-5xl">Privacy Policy</h1>
         <div className="mt-8 space-y-7 text-sm leading-7 text-[var(--muted-ink)]">
@@ -49,6 +49,17 @@ export default function PrivacyPage() {
             A report becomes publicly readable only after you use the explicit
             publish flow. Published reports contain redacted report data, not
             the private encrypted bundle.
+          </Section>
+          <Section title="AI research">
+            Starting research sends your question and short excerpts from your
+            source links through our server to the administrator-configured AI
+            provider. This processing happens before any optional encrypted
+            cloud save. Do not submit confidential material. We retain a hashed
+            Google account identifier, request fingerprint, time, status, and
+            token counts to enforce research allowances, including after account
+            recreation. These operational records are retained for the current
+            and previous two calendar months and cleaned when new research starts.
+            Provider retention depends on the selected provider’s terms.
           </Section>
           <Section title="Service providers">
             Authentication and database services are provided by Neon; Google

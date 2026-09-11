@@ -92,7 +92,7 @@ export const DEFAULT_ACCOUNT_LIMITS = {
   versions: 100,
   reports: 20,
   dailyCloudWrites: 50,
-  dailyHostedRuns: 5,
+  dailyHostedRuns: 2,
 } as const;
 
 export class NeonSignInRequiredError extends Error {

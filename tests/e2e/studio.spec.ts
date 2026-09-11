@@ -89,8 +89,7 @@ test('hosted member workflow covers Jury, replay, encryption, and merge', async 
 
   await page.goto('/jury/new'); await ready(page);
   await page.getByLabel('What should the jury investigate?').fill('Does the protocol support signed messages and what are its limits?');
-  await page.getByLabel('Hosted provider').click();
-  await page.getByRole('option', { name: /Hosted Research Jury/ }).click();
+  await page.getByLabel('Source links').fill('https://example.com/evidence');
   await page.getByRole('button', { name: 'Start hosted jury' }).click();
   await expect(page).toHaveURL(new RegExp(`/jury/${runId}`));
   await expect(page.getByText('supported', { exact: true })).toBeVisible();

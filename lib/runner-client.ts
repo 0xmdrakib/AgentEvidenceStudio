@@ -29,6 +29,7 @@ export class RunnerClient {
   private snapshots = new Map<string, MemorySnapshot>();
   private conflicts: StoredConflict[] = [];
   private configured = false;
+  private model = '';
 
   constructor(public readonly baseUrl = '/api/runner') {}
 
@@ -44,6 +45,7 @@ export class RunnerClient {
     if (!response.ok)
       throw new Error(data.error ?? 'Hosted execution status is unavailable.');
     this.configured = data.configured;
+    this.model = data.model;
     return { ...data, vaultUnlocked: false };
   }
 
@@ -63,11 +65,11 @@ export class RunnerClient {
     const providers: ProviderProfile[] = this.configured
       ? [
           {
-            id: 'provider_hosted_responses',
+            id: 'provider_hosted_ai',
             name: 'Hosted Research Jury',
-            adapter: 'responses',
-            baseUrl: 'https://api.openai.com',
-            model: 'Admin managed',
+            adapter: 'chat-completions',
+            baseUrl: 'https://agentevidence.rakibhq.xyz/api/runner',
+            model: this.model,
             capabilities: {
               structuredOutput: true,
               usage: true,
@@ -80,8 +82,8 @@ export class RunnerClient {
       : [];
     return { providers };
   }
-  async runJury(question: string, providerId: string) {
-    if (providerId !== 'provider_hosted_responses')
+  async runJury(question: string, providerId: string, sourceUrls: string[]) {
+    if (providerId !== 'provider_hosted_ai')
       throw new Error('Select the hosted Research Jury provider.');
     const e2eBypass =
       process.env.NODE_ENV !== 'production' &&
@@ -95,7 +97,7 @@ export class RunnerClient {
         authorization: `Bearer ${accessToken}`,
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ action: 'jury.run', question }),
+      body: JSON.stringify({ action: 'jury.run', question, sourceUrls, requestId: crypto.randomUUID() }),
     });
     const data = (await response.json()) as { run?: RunRecord; error?: string };
     if (response.status === 401) throw new NeonSignInRequiredError();

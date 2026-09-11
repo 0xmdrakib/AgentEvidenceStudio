@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { HardDrive, LogIn, LogOut, UserRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeading } from '@/components/page-heading';
+import { AiAllowance } from '@/components/ai-allowance';
 import {
   DEFAULT_ACCOUNT_LIMITS,
   getAccountUsage,
@@ -23,6 +24,7 @@ export default function SettingsPage() {
         description="Manage your Google account, private storage quota, and sign-out controls."
       />
       <AccountSection />
+      <section className="paper mt-5 rounded-[26px] p-5 sm:p-7"><AiAllowance /></section>
     </div>
   );
 }
@@ -200,14 +202,6 @@ function AccountSection() {
                 user
                   ? `${usage?.cloud_writes_today ?? 0} / ${usage?.daily_cloud_write_limit ?? DEFAULT_ACCOUNT_LIMITS.dailyCloudWrites} today`
                   : `${DEFAULT_ACCOUNT_LIMITS.dailyCloudWrites} / day`
-              }
-            />
-            <QuotaStat
-              label="Hosted runs"
-              value={
-                user
-                  ? `${usage?.hosted_runs_today ?? 0} / ${usage?.daily_hosted_run_limit ?? DEFAULT_ACCOUNT_LIMITS.dailyHostedRuns} today`
-                  : `${DEFAULT_ACCOUNT_LIMITS.dailyHostedRuns} / day`
               }
             />
           </div>

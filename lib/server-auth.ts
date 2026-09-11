@@ -22,12 +22,13 @@ export async function verifyNeonUser(
     jwks = createRemoteJWKSet(new URL(configuredUrl));
     jwksUrl = configuredUrl;
   }
+  const issuer = required('NEON_AUTH_ISSUER');
   const verified = await jwtVerify(token, jwks, {
-    ...(process.env.NEON_AUTH_ISSUER
-      ? { issuer: process.env.NEON_AUTH_ISSUER }
-      : {}),
+    issuer,
     clockTolerance: 5,
     requiredClaims: ['sub', 'iat', 'exp'],
+  }).catch(() => {
+    throw Object.assign(new Error('Your session has expired. Please sign in again.'), { status: 401 });
   });
   if (!verified.payload.sub)
     throw Object.assign(new Error('Authenticated user has no subject.'), {

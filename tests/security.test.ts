@@ -88,7 +88,7 @@ describe('hosted request boundary', () => {
       versions: 100,
       reports: 20,
       dailyCloudWrites: 50,
-      dailyHostedRuns: 5,
+      dailyHostedRuns: 2,
     });
   });
 
