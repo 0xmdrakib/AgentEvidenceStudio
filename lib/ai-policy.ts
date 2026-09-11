@@ -27,12 +27,16 @@ export type AiUsage = {
 };
 
 export class AiRequestError extends Error {
+  readonly status: number;
+  readonly retryAfter?: number;
   constructor(
     message: string,
-    public readonly status = 400,
-    public readonly retryAfter?: number,
+    status = 400,
+    retryAfter?: number,
   ) {
     super(message);
     this.name = 'AiRequestError';
+    this.status = status;
+    this.retryAfter = retryAfter;
   }
 }
