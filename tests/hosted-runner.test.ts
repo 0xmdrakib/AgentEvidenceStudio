@@ -150,54 +150,120 @@ describe('research API authorization and dispatch', () => {
       expect.any(Object),
     );
   });
-  it('reserves quota before optional search and passes discovery usage into the same call budget', async () => {
-    vi.stubEnv('AI_BASE_URL', 'https://ai-gateway.vercel.sh/v1');
-    const searchUsage = { calls: 1, inputTokens: 120, outputTokens: 50 };
-    mocks.search.mockImplementation(async ({ onUsage }) => {
-      onUsage(searchUsage);
-      return ['https://example.com/discovered'];
-    });
-    const response = await hostedRunnerHandler.fetch(
-      request({ ...input, sourceUrls: [] }),
-    );
-    expect(response.status).toBe(201);
-    expect(mocks.reserve.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.search.mock.invocationCallOrder[0],
-    );
-    expect(mocks.sources).toHaveBeenCalledWith(
-      ['https://example.com/discovered'],
-      expect.any(AbortSignal),
-      input.question,
-      true,
-    );
-    expect(mocks.jury).toHaveBeenCalledWith(
-      expect.objectContaining({ initialUsage: searchUsage }),
-    );
-    mocks.search.mockClear();
-    mocks.reserve.mockRejectedValue(new AiRequestError('Limit reached.', 429));
-    expect(
-      (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
-        .status,
-    ).toBe(429);
-    expect(mocks.search).not.toHaveBeenCalled();
-  });
-  it('keeps explicit-source mode free of search and rejects unsupported search before reserving quota', async () => {
-    expect(
-      (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
-        .status,
-    ).toBe(422);
-    expect(mocks.reserve).not.toHaveBeenCalled();
-    expect(mocks.search).not.toHaveBeenCalled();
-    vi.stubEnv('AI_BASE_URL', 'https://ai-gateway.vercel.sh/v1');
-    expect((await hostedRunnerHandler.fetch(request())).status).toBe(201);
-    expect(mocks.search).not.toHaveBeenCalled();
-    expect(mocks.sources).toHaveBeenCalledWith(
-      input.sourceUrls,
-      expect.any(AbortSignal),
-      input.question,
-      false,
-    );
-  });
+  it.each([
+    'https://ai-gateway.vercel.sh/v1',
+    'https://api.deepseek.com',
+    'https://api.deepseek.com/v1',
+  ])(
+    'reserves quota before search with %s and shares the call budget',
+    async (baseUrl) => {
+      vi.stubEnv('AI_BASE_URL', baseUrl);
+      const searchUsage = { calls: 1, inputTokens: 120, outputTokens: 50 };
+      mocks.search.mockImplementation(async ({ onUsage }) => {
+        onUsage(searchUsage);
+        return ['https://example.com/discovered'];
+      });
+      const response = await hostedRunnerHandler.fetch(
+        request({ ...input, sourceUrls: [] }),
+      );
+      expect(response.status).toBe(201);
+      expect(mocks.reserve.mock.invocationCallOrder[0]).toBeLessThan(
+        mocks.search.mock.invocationCallOrder[0],
+      );
+      expect(mocks.sources).toHaveBeenCalledWith(
+        ['https://example.com/discovered'],
+        expect.any(AbortSignal),
+        input.question,
+        true,
+      );
+      expect(mocks.jury).toHaveBeenCalledWith(
+        expect.objectContaining({ initialUsage: searchUsage }),
+      );
+      mocks.search.mockClear();
+      mocks.reserve.mockRejectedValue(
+        new AiRequestError('Limit reached.', 429),
+      );
+      expect(
+        (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
+          .status,
+      ).toBe(429);
+      expect(mocks.search).not.toHaveBeenCalled();
+    },
+  );
+  it.each(['https://ai-gateway.vercel.sh/v1', 'https://api.deepseek.com'])(
+    'keeps explicit-source mode free of search with %s and rejects unsupported search before quota',
+    async (baseUrl) => {
+      expect(
+        (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
+          .status,
+      ).toBe(422);
+      expect(mocks.reserve).not.toHaveBeenCalled();
+      expect(mocks.search).not.toHaveBeenCalled();
+      vi.stubEnv('AI_BASE_URL', baseUrl);
+      expect((await hostedRunnerHandler.fetch(request())).status).toBe(201);
+      expect(mocks.search).not.toHaveBeenCalled();
+      expect(mocks.sources).toHaveBeenCalledWith(
+        input.sourceUrls,
+        expect.any(AbortSignal),
+        input.question,
+        false,
+      );
+    },
+  );
+  it.each(['https://ai-gateway.vercel.sh/v1', 'https://api.deepseek.com'])(
+    'does not search anonymously or retry a failed search with %s',
+    async (baseUrl) => {
+      vi.stubEnv('AI_BASE_URL', baseUrl);
+      mocks.verify.mockRejectedValueOnce(
+        Object.assign(new Error('Sign in required.'), { status: 401 }),
+      );
+      expect(
+        (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
+          .status,
+      ).toBe(401);
+      expect(mocks.reserve).not.toHaveBeenCalled();
+      expect(mocks.search).not.toHaveBeenCalled();
+      const searchUsage = { calls: 1, inputTokens: 14_336, outputTokens: 512 };
+      mocks.search.mockImplementation(async ({ onUsage }) => {
+        onUsage(searchUsage);
+        throw new AiRequestError('Search unavailable.', 502);
+      });
+      expect(
+        (await hostedRunnerHandler.fetch(request({ ...input, sourceUrls: [] })))
+          .status,
+      ).toBe(502);
+      expect(mocks.search).toHaveBeenCalledOnce();
+      expect(mocks.sources).not.toHaveBeenCalled();
+      expect(mocks.jury).not.toHaveBeenCalled();
+      expect(mocks.finish).toHaveBeenCalledWith(
+        expect.any(String),
+        'verified-owner',
+        'failed',
+        searchUsage,
+      );
+    },
+  );
+  it.each([
+    'https://api.deepseek.com',
+    'https://api.deepseek.com/v1',
+    'https://ai-gateway.vercel.sh/v1',
+  ])(
+    'advertises search for configured supported base %s without exposing credentials',
+    async (baseUrl) => {
+      vi.stubEnv('AI_BASE_URL', baseUrl);
+      vi.stubEnv('DATABASE_URL', 'test-db');
+      vi.stubEnv('NEON_AUTH_JWKS_URL', 'https://auth.example/jwks');
+      vi.stubEnv('NEON_AUTH_ISSUER', 'https://auth.example');
+      const response = await hostedRunnerHandler.fetch(
+        new Request(site + '/api/runner'),
+      );
+      const body = await response.json();
+      expect(body.webSearch).toBe(true);
+      expect(body.configured).toBe(true);
+      expect(JSON.stringify(body)).not.toContain('server-secret');
+      expect(JSON.stringify(body)).not.toContain(baseUrl);
+    },
+  );
   it('bounds request bytes and rejects unsupported methods', async () => {
     expect(
       (

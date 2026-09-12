@@ -48,11 +48,12 @@ One administrator-hosted deployment serves every member. Users work entirely in 
 - The **Challenger** searches for contradictions, stale information, and missing evidence.
 - The **Adjudicator** assigns supported, disputed, or unresolved verdicts; agent agreement alone is never treated as proof.
 
-Members submit a focused question. With Vercel AI Gateway configured, leaving
-source links empty starts one bounded Perplexity Search request through the same
-Gateway key. Alternatively, members can supply 1–3 public HTTPS links and skip
-the search charge. Other compatible model providers retain this explicit-link
-mode; an LLM's function-calling support alone does not supply a search engine.
+Members submit a focused question. With official DeepSeek or Vercel AI Gateway
+configured, leaving source links empty starts bounded web search using that
+provider's existing key. DeepSeek uses its native server-side search tool;
+Gateway uses Perplexity Search. Alternatively, members can supply 1–3 public
+HTTPS links and skip the search request. Other compatible model providers retain
+this explicit-link mode; function-calling support alone does not supply a search engine.
 
 Discovery returns at most three candidate URLs. The server independently reads
 their HTML/text pages, selects relevant excerpts with neighbouring sentences,
@@ -72,7 +73,7 @@ The administrator sets these three **server-only** Vercel environment variables:
 | `AI_BASE_URL` | Its OpenAI-compatible base URL, without `/chat/completions` |
 | `AI_MODEL` | The exact model ID published by that provider |
 
-The app appends `/chat/completions`. Official DeepSeek uses
+For the three review roles the app appends `/chat/completions`. Official DeepSeek uses
 `https://api.deepseek.com` with `deepseek-flash`; OpenAI-compatible gateways can
 use their own base path and model ID. No provider choice or credential is
 accepted from members. The provider must support non-streaming Chat Completions,
@@ -81,13 +82,22 @@ locally and does not retry provider or transport failures. It disables thinking
 on the official DeepSeek endpoint and explicitly requests non-reasoning mode for
 DeepSeek models on Vercel Gateway. Other gateways retain their own options.
 
-For model + search with the same three variables, use
-`AI_BASE_URL=https://ai-gateway.vercel.sh/v1` and the Gateway-published model ID
-(currently `deepseek/deepseek-v4.1-flash`), with your Gateway key in `AI_API_KEY`.
-No separate search credential is required. This does not change the model or key
-automatically; the administrator remains in control of all three values.
-See [Gateway search](https://vercel.com/docs/ai-gateway/models-and-providers/web-search)
-and [DeepSeek API tool support](https://api-docs.deepseek.com/guides/responses_api/).
+Both search configurations use only those same three variables:
+
+| Connection | `AI_BASE_URL` | `AI_MODEL` example | Search |
+| --- | --- | --- | --- |
+| Official DeepSeek | `https://api.deepseek.com` (also accepts `/v1`) | `deepseek-flash` | Native `web_search_20250305` tool, same DeepSeek key |
+| Vercel AI Gateway | `https://ai-gateway.vercel.sh/v1` | `deepseek/deepseek-v4.1-flash` | Gateway Perplexity Search, same Gateway key |
+
+For official DeepSeek only, the server sends the search call to
+`https://api.deepseek.com/anthropic/v1/messages`. This is another format on the
+same provider, **not** an Anthropic account or a Vercel Gateway request. The
+administrator-selected model and key remain unchanged. No extra search ENV or
+credential is needed. Exact base matching prevents lookalike hosts or arbitrary
+third-party configurations from receiving native tools. There is no automatic
+cross-provider fallback or paid retry.
+See [DeepSeek native search implementation](https://github.com/deepseek-ai/deepseek-harness/tree/master/packages/web/web-search-deepseek)
+and [Gateway server-tool search](https://vercel.com/docs/ai-gateway/models-and-providers/web-search.md).
 
 As of September 12, 2026, DeepSeek’s official API routes the retired
 `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` IDs to V4.1 Flash.
@@ -109,17 +119,28 @@ quota storage prevents any provider call. `OPENAI_API_KEY` is no longer used.
 | Cooldown | 60 seconds/member; identical requests blocked for 10 minutes |
 | Entire site | 20 attempts/day, 200/calendar month |
 | Each research | At most 4 model requests total, including discovery |
-| Search mode | 1 Gateway search-bearing request, 3 candidate pages, 1,536 search-context tokens, 512 discovery-output tokens |
+| Search mode | 1 search-bearing request, at most 3 candidate pages, 512 generated output tokens |
+| Official DeepSeek search | Native tool `max_uses: 1`; require one matched server call/result; provider controls retrieved context |
+| Gateway search | Fixed query, 3 results, 1,536 search-context tokens; require exactly 1 reported successful search |
 | Researcher / Challenger / Adjudicator | Output ceilings: 1,024 / 1,024 / 1,536 tokens |
 | Explicit-source mode | 3 roles plus at most 1 shared schema repair; repair ceiling 1,536 tokens |
 | Each role call | 12,288 input bytes, 50 seconds; no HTTP retries |
 | Entire research | 240 seconds; quota lease expires after 6 minutes |
 
-Search is configured server-side with a fixed query, result count and context
-limit; members and models cannot choose additional queries or override settings.
-The application never follows a search tool-call loop. Gateway executes its
-server tool internally: a successful result must report exactly one search call;
-missing or excessive search metadata fails closed, without another request.
+Search settings are controlled by the server, never by request-supplied tools,
+credentials, or limits. DeepSeek generates one focused query with its native
+tool, capped by `max_uses: 1`. Only structured `web_search_tool_result` URLs are
+accepted; prose and generated citations are ignored. The app keeps at most three
+safe, distinct URLs. DeepSeek does not expose a result-count or retrieved-context
+size knob, so this local truncation does not limit its internal retrieval tokens.
+Gateway receives a fixed query, result count and context limit. It executes its
+server tool internally; a successful result must report exactly one search call.
+Missing or excessive search evidence fails closed, without another request.
+These response checks detect provider overruns after the fact; they cannot undo
+charges already incurred. No application tool loop or continuation is followed.
+Both routes have a 50-second request timeout and a 65,536-byte response limit.
+Reported input above 14,336 tokens or output above 512 stops the run before roles.
+Unknown usage reserves that accounting allowance, not a guaranteed upstream cost.
 Search-mode runs spend their fourth call on discovery, so they do not have a
 fifth call for schema repair. The 20/day and 200/month site caps are still the
 initial safety policy, not DeepSeek service limits or a promised public capacity.
@@ -159,8 +180,10 @@ with its own spending ceiling remains necessary for a monetary hard stop.
 
 No cross-account result cache or persistent plaintext-question cache is added.
 Provider-managed caching follows that provider's retention and isolation rules.
-Tests use mocked upstream responses; a real Gateway search acceptance run is
-required after the administrator supplies the three live environment values.
+Tests use mocked upstream responses for both official DeepSeek and Gateway,
+including their authentication, wire formats, quotas, errors and cancellation.
+Real search acceptance runs for each connection are still required with the
+administrator's live keys; automated tests never make paid provider calls.
 
 JWT verification, verified Google identity, trusted-origin checks, strict input
 schemas, idempotency, and database quotas protect research. Source fetching pins

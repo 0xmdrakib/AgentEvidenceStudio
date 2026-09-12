@@ -129,37 +129,57 @@ describe('bounded provider-independent Research Jury', () => {
     expect(requests[0].body.user).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it('includes search in the four-call budget and disables Gateway DeepSeek reasoning explicitly', async () => {
-    const { fetchImpl, requests } = replies(outputs);
-    const onUsage = vi.fn();
-    await runHostedJury({
-      ...baseOptions,
-      config: getAiConfig({
-        AI_API_KEY: 'test',
-        AI_BASE_URL: 'https://ai-gateway.vercel.sh/v1',
-        AI_MODEL: 'deepseek/deepseek-v4.1-flash',
-      }),
-      initialUsage: { calls: 1, inputTokens: 200, outputTokens: 100 },
-      fetchImpl,
-      onUsage,
-    });
-    expect(requests).toHaveLength(3);
-    expect(requests[0].body.reasoning).toEqual({ enabled: false });
-    expect(onUsage).toHaveBeenLastCalledWith({
-      calls: 4,
-      inputTokens: 500,
-      outputTokens: 250,
-    });
-    const failed = replies([outputs[0], outputs[1], {}]);
-    await expect(
-      runHostedJury({
+  it.each([
+    [
+      'https://ai-gateway.vercel.sh/v1',
+      'deepseek/deepseek-v4.1-flash',
+      'vercel-gateway',
+    ],
+    ['https://api.deepseek.com', 'deepseek-flash', 'deepseek-native'],
+  ])(
+    'includes %s search in the four-call budget with accurate provenance',
+    async (baseUrl, model, provider) => {
+      const { fetchImpl, requests } = replies(outputs);
+      const onUsage = vi.fn();
+      const run = await runHostedJury({
         ...baseOptions,
+        config: getAiConfig({
+          AI_API_KEY: 'test',
+          AI_BASE_URL: baseUrl,
+          AI_MODEL: model,
+        }),
         initialUsage: { calls: 1, inputTokens: 200, outputTokens: 100 },
-        fetchImpl: failed.fetchImpl,
-      }),
-    ).rejects.toMatchObject({ status: 502 });
-    expect(failed.requests).toHaveLength(3);
-  });
+        fetchImpl,
+        onUsage,
+      });
+      expect(requests).toHaveLength(3);
+      if (provider === 'vercel-gateway')
+        expect(requests[0].body.reasoning).toEqual({ enabled: false });
+      else expect(requests[0].body.thinking).toEqual({ type: 'disabled' });
+      expect(
+        run.events.find((event) => event.kind === 'search.completed')?.payload,
+      ).toMatchObject({
+        value: {
+          method: `${provider}-search-then-independent-page-fetch`,
+          exhaustive: false,
+        },
+      });
+      expect(onUsage).toHaveBeenLastCalledWith({
+        calls: 4,
+        inputTokens: 500,
+        outputTokens: 250,
+      });
+      const failed = replies([outputs[0], outputs[1], {}]);
+      await expect(
+        runHostedJury({
+          ...baseOptions,
+          initialUsage: { calls: 1, inputTokens: 200, outputTokens: 100 },
+          fetchImpl: failed.fetchImpl,
+        }),
+      ).rejects.toMatchObject({ status: 502 });
+      expect(failed.requests).toHaveLength(3);
+    },
+  );
 
   it('extracts later relevant evidence with nearby qualifications without increasing excerpt size', () => {
     const text = `${'Unrelated introductory material. '.repeat(90)}Flash supports tool calling. However, built-in web search is not supported. ${'Unrelated concluding material. '.repeat(80)}`;

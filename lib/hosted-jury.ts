@@ -2,7 +2,7 @@ import type { EvidenceEvent, JuryResult, RunRecord } from '@aes/contracts';
 import { createId, redactPayload, sha256, validateJuryResult } from '@aes/core';
 import { z } from 'zod';
 import { AI_LIMITS, AiRequestError } from './ai-policy.ts';
-import { providerOptions, type AiConfig } from './ai-config.ts';
+import { providerOptions, searchProvider, type AiConfig } from './ai-config.ts';
 import { readBoundedText } from './bounded-body.ts';
 import type { ResearchSource } from './research-sources.ts';
 
@@ -162,7 +162,7 @@ Adjudicator: one verdict per researcher claim; supported requires a source cited
       'controller',
       [started.eventId],
       {
-        method: 'gateway-search-then-independent-page-fetch',
+        method: `${searchProvider(options.config) ?? 'provider'}-search-then-independent-page-fetch`,
         sourceIds: options.sources.map((source) => source.id),
         usage: options.initialUsage,
         exhaustive: false,

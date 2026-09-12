@@ -7,15 +7,32 @@ export interface AiConfig {
   endpoint: string;
 }
 
+export function searchProvider(
+  config: AiConfig,
+): 'deepseek-native' | 'vercel-gateway' | undefined {
+  // Match complete normalized bases, not model names or lookalike hostnames.
+  // Search always uses this provider's key; never fall back across providers.
+  if (
+    config.baseUrl === 'https://api.deepseek.com' ||
+    config.baseUrl === 'https://api.deepseek.com/v1'
+  )
+    return 'deepseek-native';
+  if (config.baseUrl === 'https://ai-gateway.vercel.sh/v1')
+    return 'vercel-gateway';
+  return undefined;
+}
+
 export function supportsWebSearch(config: AiConfig): boolean {
-  // Do not forward Gateway-specific tools or credentials to an arbitrary host.
-  return config.baseUrl === 'https://ai-gateway.vercel.sh/v1';
+  return searchProvider(config) !== undefined;
 }
 
 export function providerOptions(config: AiConfig): Record<string, unknown> {
   if (new URL(config.baseUrl).hostname === 'api.deepseek.com')
     return { thinking: { type: 'disabled' } };
-  if (supportsWebSearch(config) && config.model.startsWith('deepseek/'))
+  if (
+    searchProvider(config) === 'vercel-gateway' &&
+    config.model.startsWith('deepseek/')
+  )
     return { reasoning: { enabled: false } };
   return {};
 }
