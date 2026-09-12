@@ -1,4 +1,4 @@
-import { createRemoteJWKSet, jwtVerify } from 'jose';
+import { createRemoteJWKSet, jwtVerify, errors } from 'jose';
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 let jwksUrl: string | null = null;
@@ -27,8 +27,32 @@ export async function verifyNeonUser(
     issuer,
     clockTolerance: 5,
     requiredClaims: ['sub', 'iat', 'exp'],
-  }).catch(() => {
-    throw Object.assign(new Error('Your session has expired. Please sign in again.'), { status: 401 });
+  }).catch((error: unknown) => {
+    // Log only bounded diagnostic categories, never a JWT or its user claims.
+    console.warn(
+      'Neon session verification failed: ' +
+        JSON.stringify({
+          code:
+            error instanceof errors.JOSEError
+              ? error.code
+              : 'AUTH_CONNECTION_ERROR',
+          claim:
+            error instanceof errors.JWTClaimValidationFailed
+              ? error.claim
+              : undefined,
+          issuerForm:
+            error instanceof errors.JWTClaimValidationFailed &&
+            error.claim === 'iss'
+              ? error.payload.iss === new URL(issuer).origin
+                ? 'origin-only'
+                : 'other'
+              : undefined,
+        }),
+    );
+    throw Object.assign(
+      new Error('Your session has expired. Please sign in again.'),
+      { status: 401 },
+    );
   });
   if (!verified.payload.sub)
     throw Object.assign(new Error('Authenticated user has no subject.'), {
