@@ -62,6 +62,43 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe('research API authorization and dispatch', () => {
+  it('returns only the verified account’s usage without consuming a run or requiring an AI key', async () => {
+    vi.stubEnv('AI_API_KEY', '');
+    const usage = {
+      usedToday: 1,
+      usedThisMonth: 4,
+      dailyLimit: 2,
+      monthlyLimit: 10,
+      dailyResetAt: '2026-09-13T00:00:00Z',
+      monthlyResetAt: '2026-10-01T00:00:00Z',
+    };
+    mocks.usage.mockResolvedValue(usage);
+    const response = await hostedRunnerHandler.fetch(
+      new Request(site + '/api/runner?usage=1&userId=someone-else', {
+        headers: { authorization: 'Bearer test' },
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ usage });
+    expect(response.headers.get('cache-control')).toBe('private, no-store');
+    expect(mocks.usage).toHaveBeenCalledExactlyOnceWith('verified-owner');
+    expect(mocks.reserve).not.toHaveBeenCalled();
+    expect(mocks.jury).not.toHaveBeenCalled();
+    expect(mocks.search).not.toHaveBeenCalled();
+  });
+  it('does not fabricate zero usage when the allowance store is unavailable', async () => {
+    mocks.usage.mockRejectedValue(
+      new AiRequestError('Allowance temporarily unavailable.', 503),
+    );
+    const response = await hostedRunnerHandler.fetch(
+      new Request(site + '/api/runner?usage=1', {
+        headers: { authorization: 'Bearer test' },
+      }),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).not.toHaveProperty('usage');
+    expect(mocks.reserve).not.toHaveBeenCalled();
+  });
   it('requires sign-in before quota, source fetching, or provider work', async () => {
     mocks.verify.mockRejectedValue(
       Object.assign(new Error('Sign in required.'), { status: 401 }),
