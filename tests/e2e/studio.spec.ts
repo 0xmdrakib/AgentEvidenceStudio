@@ -3,6 +3,13 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
+test.beforeEach(async ({ page }) => {
+  await page.route('https://auth.fixture.neon.tech/**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: 'null',
+    headers: { 'access-control-allow-origin': 'http://localhost:3000', 'access-control-allow-credentials': 'true' },
+  }));
+});
+
 async function ready(page: Page) {
   await expect(page.locator('[data-app-hydrated="true"]')).toBeVisible();
 }
@@ -114,12 +121,6 @@ test('hosted member workflow covers Jury, replay, encryption, and merge', async 
   const bundlePath = join(exportDirectory, bundle.suggestedFilename()); await bundle.saveAs(bundlePath);
   await page.getByRole('button', { name: 'Close' }).click();
 
-  await page.getByRole('link', { name: 'Flight Recorder' }).first().click();
-  await page.getByRole('button', { name: 'Import .aesrun' }).filter({ visible: true }).first().click();
-  const chooser = page.waitForEvent('filechooser'); await page.getByRole('button', { name: 'Choose .aesrun bundle' }).click();
-  await (await chooser).setFiles(bundlePath); await page.getByLabel('Workspace passphrase').fill('hosted-e2e-passphrase');
-  await page.getByRole('button', { name: 'Unlock bundle' }).click();
-
   await page.getByRole('link', { name: 'Reports' }).first().click();
   await page.getByRole('button', { name: 'Redaction preview' }).click(); await expect(page.getByText('aesreport/v1', { exact: true })).toBeVisible();
 
@@ -133,5 +134,9 @@ test('hosted member workflow covers Jury, replay, encryption, and merge', async 
   await expect(page.getByRole('heading', { name: 'Workspace settings' })).toBeVisible();
   await expect(page.getByText('10 MB member plan')).toBeVisible();
   await expect(page.getByText('Hosted Research Jury provider')).toHaveCount(0);
+  await page.getByRole('link', { name: 'Flight Recorder' }).first().click();
+  await page.getByRole('button', { name: 'Import .aesrun' }).filter({ visible: true }).first().click();
+  await expect(page).toHaveURL(/\/auth\?next=%2Frecorder$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await rm(exportDirectory, { recursive: true, force: true });
 });

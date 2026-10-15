@@ -28,6 +28,14 @@ One administrator-hosted deployment serves every member. Users work entirely in 
 - Database-enforced 10 MB storage, record-count, write-rate, and hosted-run quotas per member
 - Responsive desktop, tablet, and mobile interface with keyboard and reduced-motion support
 
+Importing an `.aesrun` file requires Google sign-in and saves the original encrypted
+bundle to that member's account before opening it. Flight Recorder lists saved
+versions after reload and on other devices; opening one requires its original
+passphrase. Passphrases and decrypted event payloads are never uploaded. Imports
+share the existing 10 MB account quota and 512 KB per-version limit. Reimporting
+the same encrypted payload does not create an additional version. Signing out
+clears unlocked evidence from the browser workspace.
+
 ## Core modules
 
 ### Flight Recorder

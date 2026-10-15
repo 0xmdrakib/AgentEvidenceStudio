@@ -31,8 +31,22 @@ export class RunnerClient {
   private configured = false;
   private model = '';
   private webSearch = false;
+  private ownerId: string | null = null;
 
   constructor(public readonly baseUrl = '/api/runner') {}
+
+  setAccount(ownerId: string | null) {
+    if (ownerId === this.ownerId) return;
+    this.ownerId = ownerId;
+    this.runs = [];
+    this.snapshots.clear();
+    this.conflicts = [];
+  }
+
+  rememberRun(run: RunRecord, ownerId: string) {
+    if (this.ownerId !== ownerId) throw new NeonSignInRequiredError();
+    this.runs = [run, ...this.runs.filter((item) => item.id !== run.id)];
+  }
 
   async health() {
     const response = await fetch(this.baseUrl, { cache: 'no-store' });
@@ -92,9 +106,11 @@ export class RunnerClient {
     const e2eBypass =
       process.env.NODE_ENV !== 'production' &&
       process.env.NEXT_PUBLIC_E2E_MODE === '1';
-    const accessToken = e2eBypass
-      ? 'e2e-test-token'
-      : (await getNeonSession()).accessToken;
+    const requestOwner = this.ownerId;
+    const session = e2eBypass ? null : await getNeonSession();
+    if (session && session.userId !== requestOwner)
+      throw new NeonSignInRequiredError();
+    const accessToken = session?.accessToken ?? 'e2e-test-token';
     const response = await fetch(this.baseUrl, {
       method: 'POST',
       headers: {
@@ -112,6 +128,7 @@ export class RunnerClient {
     if (response.status === 401) throw new NeonSignInRequiredError();
     if (!response.ok || !data.run)
       throw new Error(data.error ?? 'Hosted Research Jury failed.');
+    if (this.ownerId !== requestOwner) throw new NeonSignInRequiredError();
     this.runs = [
       data.run,
       ...this.runs.filter((item) => item.id !== data.run!.id),

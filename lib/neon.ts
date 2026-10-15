@@ -275,9 +275,13 @@ export async function getNeonSession(): Promise<{
   const session = sessionFrom(result);
   const userId = session?.user?.id;
   const accessToken = session?.access_token ?? session?.token;
-  if (!userId || !accessToken)
-    throw new NeonSignInRequiredError();
+  if (!userId || !accessToken) throw new NeonSignInRequiredError();
   return { userId, accessToken };
+}
+
+export async function requireSameNeonAccount(ownerId: string): Promise<void> {
+  if ((await getNeonSession()).userId !== ownerId)
+    throw new NeonSignInRequiredError();
 }
 
 export async function ensureAccountLimits(): Promise<void> {
@@ -307,46 +311,15 @@ export async function getAccountUsage(): Promise<AccountUsageRow> {
 export async function uploadImmutableBundle(
   bundle: EncryptedRunBundle,
   run: RunRecord,
+  expectedOwnerId?: string,
 ): Promise<void> {
   const neon = getNeon();
   if (!neon) throw new Error('Neon is not configured.');
   const { userId } = await getNeonSession();
-  const keyFingerprint = await crypto.subtle
-    .digest('SHA-256', new TextEncoder().encode(bundle.wrappedKey.ciphertext))
-    .then((digest) =>
-      [...new Uint8Array(digest)]
-        .map((byte) => byte.toString(16).padStart(2, '0'))
-        .join(''),
-    );
-  const workspace = await neon
-    .from('workspaces')
-    .upsert(
-      {
-        id: bundle.workspaceId,
-        owner_id: userId,
-        name: 'Personal evidence workspace',
-        key_fingerprint: keyFingerprint,
-        recovery_confirmed_at: new Date().toISOString(),
-      },
-      { onConflict: 'id' },
-    );
-  if (workspace.error) throw workspace.error;
-  const runMetadata = await neon
-    .from('run_metadata')
-    .upsert(
-      {
-        owner_id: userId,
-        workspace_id: bundle.workspaceId,
-        run_id: run.id,
-        module: run.module,
-        state: run.state,
-        title: run.title,
-        created_at: run.createdAt,
-        updated_at: run.updatedAt,
-      },
-      { onConflict: 'workspace_id,run_id' },
-    );
-  if (runMetadata.error) throw runMetadata.error;
+  if (expectedOwnerId && userId !== expectedOwnerId)
+    throw new NeonSignInRequiredError();
+  if (bundle.runId !== run.id)
+    throw new Error('The run does not match this encrypted bundle.');
   const objectSize = new TextEncoder().encode(
     JSON.stringify(bundle),
   ).byteLength;
@@ -354,47 +327,131 @@ export async function uploadImmutableBundle(
     throw new Error(
       'This encrypted bundle is larger than the 512 KB per-version limit.',
     );
-  const objectPath = `${userId}/${bundle.workspaceId}/${bundle.runId}/${bundle.payload.digest}.aesrun`;
-  const metadata = await neon
+  // Identical imports are already saved; do not consume writes or create versions.
+  const existing = await neon
     .from('bundle_versions')
-    .insert({
-      owner_id: userId,
-      workspace_id: bundle.workspaceId,
-      run_id: bundle.runId,
-      object_path: objectPath,
-      object_digest: bundle.payload.digest,
-      object_size: objectSize,
-      format: bundle.format,
-      bundle_data: bundle,
-    });
+    .select('id')
+    .eq('owner_id', userId)
+    .eq('run_id', bundle.runId)
+    .eq('object_digest', bundle.payload.digest)
+    .maybeSingle();
+  if (existing.error) throw existing.error;
+  await requireSameNeonAccount(userId);
+  if (existing.data) return;
+  const keyFingerprint = await crypto.subtle
+    .digest('SHA-256', new TextEncoder().encode(bundle.wrappedKey.ciphertext))
+    .then((digest) =>
+      [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join(''),
+    );
+  const knownWorkspace = await neon
+    .from('workspaces')
+    .select('id')
+    .eq('owner_id', userId)
+    .order('created_at', { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (knownWorkspace.error) throw knownWorkspace.error;
+  await requireSameNeonAccount(userId);
+  let storageWorkspaceId = knownWorkspace.data?.id ?? crypto.randomUUID();
+  // Storage belongs to this account; preserve the envelope's original ID for recovery.
+  const workspace = knownWorkspace.data
+    ? null
+    : await neon.from('workspaces').insert({
+        id: storageWorkspaceId,
+        owner_id: userId,
+        name: 'Personal evidence workspace',
+        key_fingerprint: keyFingerprint,
+        recovery_confirmed_at: new Date().toISOString(),
+      });
+  if (workspace?.error && workspace.error.code !== '23505')
+    throw workspace.error;
+  await requireSameNeonAccount(userId);
+  if (workspace?.error) {
+    const racedWorkspace = await neon
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single();
+    if (racedWorkspace.error || !racedWorkspace.data) throw workspace.error;
+    storageWorkspaceId = racedWorkspace.data.id;
+    await requireSameNeonAccount(userId);
+  }
+  const knownRun = await neon
+    .from('run_metadata')
+    .select('run_id')
+    .eq('owner_id', userId)
+    .eq('workspace_id', storageWorkspaceId)
+    .eq('run_id', run.id)
+    .maybeSingle();
+  if (knownRun.error) throw knownRun.error;
+  await requireSameNeonAccount(userId);
+  // Existing metadata stays with its first saved version. Avoid triggering
+  // INSERT quotas on an upsert of an existing workspace or run.
+  const runMetadata = knownRun.data
+    ? null
+    : await neon.from('run_metadata').insert({
+        owner_id: userId,
+        workspace_id: storageWorkspaceId,
+        run_id: run.id,
+        module: run.module,
+        state: run.state,
+        title: run.title,
+        created_at: run.createdAt,
+        updated_at: run.updatedAt,
+      });
+  if (runMetadata?.error && runMetadata.error.code !== '23505')
+    throw runMetadata.error;
+  await requireSameNeonAccount(userId);
+  const objectPath = `${userId}/${storageWorkspaceId}/${bundle.runId}/${bundle.payload.digest}.aesrun`;
+  const metadata = await neon.from('bundle_versions').insert({
+    owner_id: userId,
+    workspace_id: storageWorkspaceId,
+    run_id: bundle.runId,
+    object_path: objectPath,
+    object_digest: bundle.payload.digest,
+    object_size: objectSize,
+    format: bundle.format,
+    bundle_data: bundle,
+  });
   if (metadata.error && metadata.error.code !== '23505') throw metadata.error;
+  await requireSameNeonAccount(userId);
 }
 
-export async function listCloudBundles(): Promise<
-  Array<{
-    workspace_id: string;
-    run_id: string;
-    object_digest: string;
-    object_size: number;
-    created_at: string;
-  }>
-> {
+export type CloudBundleVersion = {
+  workspace_id: string;
+  run_id: string;
+  object_digest: string;
+  object_size: number;
+  created_at: string;
+  title: string;
+};
+
+export async function listCloudBundles(): Promise<CloudBundleVersion[]> {
   const neon = getNeon();
   if (!neon) return [];
-  await getNeonSession();
+  const { userId } = await getNeonSession();
   const result = await neon
     .from('bundle_versions')
-    .select('workspace_id,run_id,object_digest,object_size,created_at')
+    .select(
+      'workspace_id,run_id,object_digest,object_size,created_at,run_metadata(title)',
+    )
+    .eq('owner_id', userId)
     .order('created_at', { ascending: false })
     .limit(100);
   if (result.error) throw result.error;
-  return (result.data ?? []) as Array<{
-    workspace_id: string;
-    run_id: string;
-    object_digest: string;
-    object_size: number;
-    created_at: string;
-  }>;
+  await requireSameNeonAccount(userId);
+  return (result.data ?? []).map((record: any) => ({
+    workspace_id: record.workspace_id,
+    run_id: record.run_id,
+    object_digest: record.object_digest,
+    object_size: Number(record.object_size),
+    created_at: record.created_at,
+    title: record.run_metadata?.title ?? record.run_id,
+  }));
 }
 
 export async function downloadCloudBundle(version: {
@@ -404,16 +461,18 @@ export async function downloadCloudBundle(version: {
 }): Promise<EncryptedRunBundle> {
   const neon = getNeon();
   if (!neon) throw new Error('Neon is not configured.');
-  await getNeonSession();
+  const { userId } = await getNeonSession();
   const record = await neon
     .from('bundle_versions')
     .select('bundle_data')
+    .eq('owner_id', userId)
     .eq('workspace_id', version.workspace_id)
     .eq('run_id', version.run_id)
     .eq('object_digest', version.object_digest)
     .single();
   if (record.error || !record.data?.bundle_data)
     throw record.error ?? new Error('Encrypted bundle version was not found.');
+  await requireSameNeonAccount(userId);
   return record.data.bundle_data as EncryptedRunBundle;
 }
 
@@ -433,18 +492,16 @@ export async function publishPublicReport(
         .map((byte) => byte.toString(16).padStart(2, '0'))
         .join(''),
     );
-  const inserted = await neon
-    .from('published_reports')
-    .insert({
-      id: report.reportId,
-      owner_id: userId,
-      run_id: report.runId,
-      title: report.title,
-      object_digest: digest,
-      object_size: bytes.byteLength,
-      report_json: report,
-      revoked_at: null,
-    });
+  const inserted = await neon.from('published_reports').insert({
+    id: report.reportId,
+    owner_id: userId,
+    run_id: report.runId,
+    title: report.title,
+    object_digest: digest,
+    object_size: bytes.byteLength,
+    report_json: report,
+    revoked_at: null,
+  });
   if (inserted.error) throw inserted.error;
   return report.reportId;
 }
